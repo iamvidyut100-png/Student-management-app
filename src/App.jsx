@@ -28,7 +28,23 @@ const seed = {
 function loadData() {
   try {
     const saved = localStorage.getItem("student-management-data");
-    return saved ? JSON.parse(saved) : seed;
+    if (!saved) return seed;
+    const data = JSON.parse(saved);
+    const gccId = "b-gcc-physics";
+    const gccBatch = { id: gccId, name: "Physics — GCC Batch", subject: "Physics", time: "5:30 PM", days: "Tue · Thu · Sat" };
+    const gccStudents = [
+      ["Krishna Das", "[23/4]1+"], ["Abhijeet Das", "[23/4]"], ["Sourav Chauhan", ""],
+      ["Debosmita Chetry", "1+"], ["Narayan Chouhan", "[25/5]"], ["Gita Sangma", "[27/5]"],
+      ["Nomita Kumari", "-"], ["Survala Devi", "-"], ["Aditya Chauhan", ""]
+    ];
+    const batches = data.batches.some(b => b.id === gccId) ? data.batches : [gccBatch, ...data.batches];
+    const existingNames = new Set(data.students.map(s => s.name.trim().toLowerCase()));
+    const newStudents = gccStudents.filter(([name]) => !existingNames.has(name.toLowerCase())).map(([name,note], i) => ({
+      id: gccId + "-s" + (i + 1), name, phone: "", parent: "", batchId: gccId, fee: 1000, status: "Active", joined: today(), note
+    }));
+    const next = newStudents.length ? { ...data, batches, students: [...newStudents, ...data.students] } : { ...data, batches };
+    if (newStudents.length || batches.length !== data.batches.length) localStorage.setItem("student-management-data", JSON.stringify(next));
+    return next;
   } catch { return seed; }
 }
 
@@ -156,7 +172,7 @@ function Attendance({data,batchName,onMark}) {
   const present=students.filter(s=>marks[s.id]===true).length;
   const absent=students.filter(s=>marks[s.id]===false).length;
   const unmarked=students.length-present-absent;
-  return <div className="content"><div className="page-actions"><div><p className="muted">Mark attendance student-by-student</p><h2>Attendance</h2></div><div className="filters"><input type="date" value={date} onChange={e=>setDate(e.target.value)}/><select value={batch} onChange={e=>setBatch(e.target.value)}><option value="all">All batches</option>{data.batches.map(b=><option value={b.id} key={b.id}>{b.name}</option>)}</select></div></div><section className="panel attendance-panel"><div className="attendance-summary"><div><b>{present} Present</b><span> · {absent} Absent · {unmarked} Not marked</span></div><span className="summary-pill">{students.length?Math.round(present/students.length*100):0}%</span></div><div className="attendance-list">{students.map((s,index)=>{const status=marks[s.id];return <div className="attendance-row" key={s.id}><div className="person"><div className="person-avatar">{s.name.split(" ").map(x=>x[0]).join("").slice(0,2)}</div><div><b>{index+1}. {s.name}</b><span>{batchName(s.batchId)} · {s.phone}</span></div></div><div className="attendance-buttons"><button className={status===true?"present":""} onClick={()=>onMark(date,s.id,true)}><Check size={17}/> Present</button><button className={status===false?"absent":""} onClick={()=>onMark(date,s.id,false)}><X size={17}/> Absent</button></div></div>})}</div></section></div>
+  return <div className="content"><div className="page-actions"><div><p className="muted">Mark attendance student-by-student</p><h2>Attendance</h2></div><div className="filters"><input type="date" value={date} onChange={e=>setDate(e.target.value)}/><select value={batch} onChange={e=>setBatch(e.target.value)}><option value="all">All batches</option>{data.batches.map(b=><option value={b.id} key={b.id}>{b.name}</option>)}</select></div></div><section className="panel attendance-panel"><div className="attendance-summary"><div><b>{present} Present</b><span> · {absent} Absent · {unmarked} Not marked</span></div><span className="summary-pill">{students.length?Math.round(present/students.length*100):0}%</span></div><div className="attendance-list">{students.map((s,index)=>{const status=marks[s.id];return <div className="attendance-row" key={s.id}><div className="person"><div className="person-avatar">{s.name.split(" ").map(x=>x[0]).join("").slice(0,2)}</div><div><b>{index+1}. {s.name}</b><span>{batchName(s.batchId)}{s.phone ? " · " + s.phone : ""}{s.note ? " · " + s.note : ""}</span></div></div><div className="attendance-buttons"><button className={status===true?"present":""} onClick={()=>onMark(date,s.id,true)}><Check size={17}/> Present</button><button className={status===false?"absent":""} onClick={()=>onMark(date,s.id,false)}><X size={17}/> Absent</button></div></div>})}</div></section></div>
 }
 
 function Fees({data,batchName,onModal}) {
