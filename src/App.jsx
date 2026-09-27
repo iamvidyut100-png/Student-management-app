@@ -1,0 +1,180 @@
+import React, { useMemo, useState } from "react";
+import {
+  LayoutDashboard, Users, Layers3, CalendarCheck2, WalletCards, Plus,
+  Search, MoreHorizontal, Phone, IndianRupee, Check, X, Menu, ChevronRight,
+  GraduationCap, Bell, TrendingUp, UserRoundPlus, CircleDollarSign, ClipboardCheck
+} from "lucide-react";
+
+const seed = {
+  batches: [
+    { id: "b1", name: "Class 12 Physics", subject: "Physics", time: "6:00 PM", days: "Mon · Wed · Fri" },
+    { id: "b2", name: "Class 10 Maths", subject: "Mathematics", time: "7:00 PM", days: "Tue · Thu · Sat" },
+    { id: "b3", name: "SSC GD", subject: "Competitive", time: "5:00 PM", days: "Mon · Wed · Fri" }
+  ],
+  students: [
+    { id: "s1", name: "Rahul Das", phone: "9876543210", parent: "Ramesh Das", batchId: "b1", fee: 1000, status: "Active", joined: "2026-04-12" },
+    { id: "s2", name: "Priya Sharma", phone: "9123456780", parent: "Sunil Sharma", batchId: "b2", fee: 750, status: "Active", joined: "2026-05-03" },
+    { id: "s3", name: "Aman Ali", phone: "9864123456", parent: "Karim Ali", batchId: "b3", fee: 1000, status: "Active", joined: "2026-06-18" },
+    { id: "s4", name: "Neha Nath", phone: "9435123456", parent: "Bimal Nath", batchId: "b1", fee: 1000, status: "Active", joined: "2026-07-09" }
+  ],
+  payments: [
+    { id: "p1", studentId: "s1", amount: 1000, date: "2026-09-05" },
+    { id: "p2", studentId: "s2", amount: 750, date: "2026-09-04" },
+    { id: "p3", studentId: "s3", amount: 1000, date: "2026-09-02" }
+  ],
+  attendance: {}
+};
+
+function loadData() {
+  try {
+    const saved = localStorage.getItem("student-management-data");
+    return saved ? JSON.parse(saved) : seed;
+  } catch { return seed; }
+}
+
+const money = n => "₹" + Number(n || 0).toLocaleString("en-IN");
+const today = () => new Date().toISOString().slice(0, 10);
+
+export default function App() {
+  const [data, setData] = useState(loadData);
+  const [page, setPage] = useState("dashboard");
+  const [search, setSearch] = useState("");
+  const [modal, setModal] = useState(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const save = next => {
+    setData(next);
+    localStorage.setItem("student-management-data", JSON.stringify(next));
+  };
+
+  const batchName = id => data.batches.find(b => b.id === id)?.name || "Unassigned";
+  const monthKey = new Date().toISOString().slice(0, 7);
+
+  const paidThisMonth = useMemo(() =>
+    data.payments.filter(p => p.date.startsWith(monthKey)).reduce((s, p) => s + Number(p.amount), 0), [data.payments, monthKey]);
+
+  const pending = useMemo(() => data.students.reduce((s, st) => {
+    const paid = data.payments.filter(p => p.studentId === st.id && p.date.startsWith(monthKey)).reduce((a,p) => a + Number(p.amount), 0);
+    return s + Math.max(0, Number(st.fee) - paid);
+  }, 0), [data]);
+
+  const attendanceToday = Object.values(data.attendance[today()] || {});
+  const presentToday = attendanceToday.filter(Boolean).length;
+  const attendanceRate = attendanceToday.length ? Math.round((presentToday / attendanceToday.length) * 100) : 0;
+
+  const addStudent = form => {
+    const student = { ...form, id: "s" + Date.now(), fee: Number(form.fee), status: "Active", joined: today() };
+    save({ ...data, students: [student, ...data.students] });
+    setModal(null);
+  };
+
+  const addBatch = form => {
+    const batch = { ...form, id: "b" + Date.now() };
+    save({ ...data, batches: [batch, ...data.batches] });
+    setModal(null);
+  };
+
+  const recordPayment = form => {
+    const payment = { ...form, id: "p" + Date.now(), amount: Number(form.amount), date: today() };
+    save({ ...data, payments: [payment, ...data.payments] });
+    setModal(null);
+  };
+
+  const markAttendance = (date, studentId, present) => {
+    const day = { ...(data.attendance[date] || {}), [studentId]: present };
+    save({ ...data, attendance: { ...data.attendance, [date]: day } });
+  };
+
+  const nav = [
+    ["dashboard", "Dashboard", LayoutDashboard],
+    ["students", "Students", Users],
+    ["batches", "Batches", Layers3],
+    ["attendance", "Attendance", CalendarCheck2],
+    ["fees", "Fees", WalletCards]
+  ];
+
+  const title = nav.find(n => n[0] === page)?.[1] || "Dashboard";
+
+  return <div className="app">
+    <aside className={"sidebar " + (mobileOpen ? "open" : "")}>
+      <div className="brand"><div className="brand-mark"><GraduationCap size={21}/></div><div><strong>Student<span>Hub</span></strong><small>Management</small></div></div>
+      <nav>{nav.map(([key,label,Icon]) =>
+        <button key={key} className={page === key ? "active" : ""} onClick={() => {setPage(key);setMobileOpen(false)}}><Icon size={19}/><span>{label}</span></button>
+      )}</nav>
+      <div className="sidebar-bottom"><div className="mini-card"><Bell size={17}/><div><b>Stay organized</b><span>Manage your centre easily.</span></div></div></div>
+    </aside>
+    {mobileOpen && <div className="overlay" onClick={() => setMobileOpen(false)}/>}
+    <main className="main">
+      <header className="topbar"><button className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu/></button><div><div className="eyebrow">TUITION CENTRE</div><h1>{title}</h1></div><div className="top-actions"><div className="search-top"><Search size={17}/><input placeholder="Search students..." value={search} onChange={e=>setSearch(e.target.value)}/></div><div className="avatar">V</div></div></header>
+      {page === "dashboard" && <Dashboard data={data} batchName={batchName} paid={paidThisMonth} pending={pending} rate={attendanceRate} onPage={setPage} onModal={setModal}/>}
+      {page === "students" && <Students data={data} batchName={batchName} search={search} onModal={setModal}/>}
+      {page === "batches" && <Batches data={data} onModal={setModal}/>}
+      {page === "attendance" && <Attendance data={data} batchName={batchName} onMark={markAttendance}/>}
+      {page === "fees" && <Fees data={data} batchName={batchName} onModal={setModal}/>}
+    </main>
+    {modal === "student" && <StudentModal batches={data.batches} onClose={()=>setModal(null)} onSave={addStudent}/>}
+    {modal === "batch" && <BatchModal onClose={()=>setModal(null)} onSave={addBatch}/>}
+    {modal === "payment" && <PaymentModal students={data.students} onClose={()=>setModal(null)} onSave={recordPayment}/>}
+  </div>;
+}
+
+function Dashboard({data,batchName,paid,pending,rate,onPage,onModal}) {
+  const cards=[
+    ["Total Students",data.students.length,Users,"blue"],
+    ["Active Batches",data.batches.length,Layers3,"purple"],
+    ["Collected This Month",money(paid),CircleDollarSign,"green"],
+    ["Pending Fees",money(pending),WalletCards,"orange"]
+  ];
+  return <div className="content">
+    <section className="welcome"><div><p>Good to see you 👋</p><h2>Here’s what’s happening today.</h2><span>Keep your student records, attendance and fees in one place.</span></div><button className="primary" onClick={()=>onModal("student")}><Plus size={18}/> Add Student</button></section>
+    <div className="stats">{cards.map(([label,value,Icon,color])=><div className="stat" key={label}><div className={"stat-icon "+color}><Icon size={19}/></div><div><span>{label}</span><strong>{value}</strong></div></div>)}</div>
+    <div className="grid-2">
+      <section className="panel"><div className="panel-head"><div><h3>Today’s attendance</h3><span>Across all active students</span></div><button className="link" onClick={()=>onPage("attendance")}>Mark attendance <ChevronRight size={15}/></button></div><div className="attendance-big"><div className="ring" style={{"--rate":rate}}><strong>{rate}%</strong><span>Present</span></div><div className="att-copy"><b>{Object.values(data.attendance[today()]||{}).filter(Boolean).length} present</b><span>of {Object.keys(data.attendance[today()]||{}).length || data.students.length} marked today</span><button className="soft" onClick={()=>onPage("attendance")}><ClipboardCheck size={16}/> Open attendance</button></div></div></section>
+      <section className="panel"><div className="panel-head"><div><h3>Quick actions</h3><span>Common tasks</span></div></div><div className="quick-grid"><button onClick={()=>onModal("student")}><UserRoundPlus/><b>Add student</b><span>Create a profile</span></button><button onClick={()=>onModal("payment")}><IndianRupee/><b>Record fee</b><span>Add a payment</span></button><button onClick={()=>onPage("attendance")}><CalendarCheck2/><b>Attendance</b><span>Mark today</span></button><button onClick={()=>onModal("batch")}><Layers3/><b>New batch</b><span>Create a batch</span></button></div></section>
+    </div>
+    <section className="panel"><div className="panel-head"><div><h3>Recent students</h3><span>Latest admissions</span></div><button className="link" onClick={()=>onPage("students")}>View all <ChevronRight size={15}/></button></div><StudentTable students={data.students.slice(0,5)} batchName={batchName}/></section>
+  </div>
+}
+
+function Students({data,batchName,search,onModal}) {
+  const filtered=data.students.filter(s=>(s.name+" "+s.phone+" "+batchName(s.batchId)).toLowerCase().includes(search.toLowerCase()));
+  return <div className="content"><div className="page-actions"><div><p className="muted">Manage your student records</p><h2>All Students <span className="count">{data.students.length}</span></h2></div><button className="primary" onClick={()=>onModal("student")}><Plus size={18}/> Add Student</button></div><section className="panel table-panel"><div className="mobile-search"><Search size={16}/><input placeholder="Search by name, phone or batch" value={search} readOnly/></div><StudentTable students={filtered} batchName={batchName} empty="No students found."/></section></div>
+}
+
+function StudentTable({students,batchName,empty="No students yet."}) {
+  return <div className="table-wrap"><table><thead><tr><th>Student</th><th>Batch</th><th>Fee / month</th><th>Status</th><th></th></tr></thead><tbody>{students.map(s=><tr key={s.id}><td><div className="person"><div className="person-avatar">{s.name.split(" ").map(x=>x[0]).join("").slice(0,2)}</div><div><b>{s.name}</b><span>{s.phone}</span></div></div></td><td>{batchName(s.batchId)}</td><td>{money(s.fee)}</td><td><span className="status"><i/> {s.status}</span></td><td><button className="icon-btn"><MoreHorizontal size={18}/></button></td></tr>)}</tbody></table>{!students.length&&<div className="empty">{empty}</div>}</div>
+}
+
+function Batches({data,onModal}) {
+  return <div className="content"><div className="page-actions"><div><p className="muted">Organize your classes</p><h2> Batches <span className="count">{data.batches.length}</span></h2></div><button className="primary" onClick={()=>onModal("batch")}><Plus size={18}/> New Batch</button></div><div className="batch-grid">{data.batches.map(b=>{const count=data.students.filter(s=>s.batchId===b.id).length;return <div className="batch-card" key={b.id}><div className="batch-icon"><Layers3/></div><div className="batch-main"><h3>{b.name}</h3><span>{b.subject}</span></div><div className="batch-meta"><div><b>{count}</b><span>Students</span></div><div><b>{b.time}</b><span>Class time</span></div></div><div className="days">{b.days}</div></div>})}</div></div>
+}
+
+function Attendance({data,batchName,onMark}) {
+  const [date,setDate]=useState(today()); const [batch,setBatch]=useState("all");
+  const students=data.students.filter(s=>batch==="all"||s.batchId===batch);
+  const marks=data.attendance[date]||{};
+  return <div className="content"><div className="page-actions"><div><p className="muted">Daily student presence</p><h2>Attendance</h2></div><div className="filters"><input type="date" value={date} onChange={e=>setDate(e.target.value)}/><select value={batch} onChange={e=>setBatch(e.target.value)}><option value="all">All batches</option>{data.batches.map(b=><option value={b.id} key={b.id}>{b.name}</option>)}</select></div></div><section className="panel attendance-panel"><div className="attendance-summary"><b>{students.filter(s=>marks[s.id]).length} present</b><span> / {students.length} students</span><span className="summary-pill">{students.length?Math.round(students.filter(s=>marks[s.id]).length/students.length*100):0}%</span></div><div className="attendance-list">{students.map(s=><div className="attendance-row" key={s.id}><div className="person"><div className="person-avatar">{s.name.split(" ").map(x=>x[0]).join("").slice(0,2)}</div><div><b>{s.name}</b><span>{batchName(s.batchId)}</span></div></div><div className="attendance-buttons"><button className={marks[s.id]===true?"present":""} onClick={()=>onMark(date,s.id,true)}><Check size={17}/> Present</button><button className={marks[s.id]===false?"absent":""} onClick={()=>onMark(date,s.id,false)}><X size={17}/> Absent</button></div></div>)}</div></section></div>
+}
+
+function Fees({data,batchName,onModal}) {
+  const monthKey=new Date().toISOString().slice(0,7);
+  const rows=data.students.map(s=>{const paid=data.payments.filter(p=>p.studentId===s.id&&p.date.startsWith(monthKey)).reduce((a,p)=>a+Number(p.amount),0);return {...s,paid,due:Math.max(0,s.fee-paid)}})
+  return <div className="content"><div className="page-actions"><div><p className="muted">Track monthly collections</p><h2>Fees</h2></div><button className="primary" onClick={()=>onModal("payment")}><Plus size={18}/> Record Payment</button></div><div className="fee-cards"><div><span>Collected</span><b>{money(rows.reduce((a,r)=>a+r.paid,0))}</b></div><div><span>Pending</span><b>{money(rows.reduce((a,r)=>a+r.due,0))}</b></div><div><span>Paid students</span><b>{rows.filter(r=>r.due===0).length}/{rows.length}</b></div></div><section className="panel table-panel"><div className="panel-head"><div><h3>September {new Date().getFullYear()}</h3><span>Monthly fee status</span></div></div><div className="table-wrap"><table><thead><tr><th>Student</th><th>Batch</th><th>Monthly fee</th><th>Paid</th><th>Due</th></tr></thead><tbody>{rows.map(r=><tr key={r.id}><td><div className="person"><div className="person-avatar">{r.name.split(" ").map(x=>x[0]).join("").slice(0,2)}</div><div><b>{r.name}</b><span>{r.phone}</span></div></div></td><td>{batchName(r.batchId)}</td><td>{money(r.fee)}</td><td className="paid">{money(r.paid)}</td><td className={r.due?"due":"paid"}>{money(r.due)}</td></tr>)}</tbody></table></div></section></div>
+}
+
+function Modal({title,children,onClose,onSubmit,submit="Save"}) {
+  return <div className="modal-backdrop" onMouseDown={onClose}><div className="modal" onMouseDown={e=>e.stopPropagation()}><div className="modal-head"><h3>{title}</h3><button onClick={onClose}>×</button></div>{children}<button className="primary full" onClick={onSubmit}>{submit}</button></div></div>
+}
+function StudentModal({batches,onClose,onSave}) {
+  const [f,setF]=useState({name:"",phone:"",parent:"",batchId:batches[0]?.id||"",fee:1000});
+  const set=(k,v)=>setF({...f,[k]:v});
+  return <Modal title="Add student" onClose={onClose} onSubmit={()=>f.name&&onSave(f)}><div className="form-grid"><label>Student name<input value={f.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. Rahul Das"/></label><label>Student phone<input value={f.phone} onChange={e=>set("phone",e.target.value)} placeholder="10-digit number"/></label><label>Parent / guardian<input value={f.parent} onChange={e=>set("parent",e.target.value)} placeholder="Parent name"/></label><label>Monthly fee<input type="number" value={f.fee} onChange={e=>set("fee",e.target.value)}/></label><label className="wide">Batch<select value={f.batchId} onChange={e=>set("batchId",e.target.value)}>{batches.map(b=><option value={b.id} key={b.id}>{b.name}</option>)}</select></label></div></Modal>
+}
+function BatchModal({onClose,onSave}) {
+  const [f,setF]=useState({name:"",subject:"",time:"6:00 PM",days:"Mon · Wed · Fri"}); const set=(k,v)=>setF({...f,[k]:v});
+  return <Modal title="Create batch" onClose={onClose} onSubmit={()=>f.name&&onSave(f)}><div className="form-grid"><label>Batch name<input value={f.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. Class 12 Physics"/></label><label>Subject<input value={f.subject} onChange={e=>set("subject",e.target.value)} placeholder="Physics"/></label><label>Class time<input value={f.time} onChange={e=>set("time",e.target.value)} placeholder="6:00 PM"/></label><label>Days<input value={f.days} onChange={e=>set("days",e.target.value)} placeholder="Mon · Wed · Fri"/></label></div></Modal>
+}
+function PaymentModal({students,onClose,onSave}) {
+  const [f,setF]=useState({studentId:students[0]?.id||"",amount:1000}); const set=(k,v)=>setF({...f,[k]:v});
+  return <Modal title="Record payment" onClose={onClose} onSubmit={()=>onSave(f)}><div className="form-grid"><label className="wide">Student<select value={f.studentId} onChange={e=>set("studentId",e.target.value)}>{students.map(s=><option value={s.id} key={s.id}>{s.name}</option>)}</select></label><label>Amount<input type="number" value={f.amount} onChange={e=>set("amount",e.target.value)}/></label></div></Modal>
+}
