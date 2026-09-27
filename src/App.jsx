@@ -2,7 +2,8 @@ import React, { useMemo, useState } from "react";
 import {
   LayoutDashboard, Users, Layers3, CalendarCheck2, WalletCards, Plus,
   Search, MoreHorizontal, Phone, IndianRupee, Check, X, Menu, ChevronRight,
-  GraduationCap, Bell, TrendingUp, UserRoundPlus, CircleDollarSign, ClipboardCheck
+  GraduationCap, Bell, TrendingUp, UserRoundPlus, CircleDollarSign, ClipboardCheck,
+  Trash2
 } from "lucide-react";
 
 const seed = {
@@ -30,12 +31,10 @@ function loadData() {
     const saved = localStorage.getItem("student-management-data");
     const data = saved ? JSON.parse(saved) : seed;
     const now = new Date().toISOString().slice(0, 10);
-
     const batchesToAdd = [
       { id: "b-gcc-physics", name: "Physics — GCC Batch", subject: "Physics", time: "5:30 PM", days: "Tue · Thu · Sat" },
       { id: "b-maths-2nd-year", name: "Maths — 2nd Year", subject: "Mathematics", time: "6:00 PM", days: "Mon · Wed · Fri" }
     ];
-
     const studentsToAdd = [
       { id: "b-gcc-physics-s1", name: "Krishna Das", note: "[23/4]1+", batchId: "b-gcc-physics" },
       { id: "b-gcc-physics-s2", name: "Abhijeet Das", note: "[23/4]", batchId: "b-gcc-physics" },
@@ -54,10 +53,8 @@ function loadData() {
       { id: "b-maths-2nd-year-s6", name: "Desh Bandhu 1", note: "1", batchId: "b-maths-2nd-year" },
       { id: "b-maths-2nd-year-s7", name: "Desh Bandhu 2", note: "", batchId: "b-maths-2nd-year" }
     ];
-
     const existingBatchIds = new Set((data.batches || []).map(b => b.id));
     const batches = [...(data.batches || []), ...batchesToAdd.filter(b => !existingBatchIds.has(b.id))];
-
     const existingStudentIds = new Set((data.students || []).map(s => s.id));
     const students = [
       ...(data.students || []),
@@ -65,7 +62,6 @@ function loadData() {
         ...s, phone: "", parent: "", fee: 1000, status: "Active", joined: now
       }))
     ];
-
     const next = { ...seed, ...data, batches, students, payments: data.payments || [], attendance: data.attendance || {} };
     localStorage.setItem("student-management-data", JSON.stringify(next));
     return next;
@@ -91,7 +87,6 @@ export default function App() {
 
   const batchName = id => data.batches.find(b => b.id === id)?.name || "Unassigned";
   const monthKey = new Date().toISOString().slice(0, 7);
-
   const paidThisMonth = useMemo(() =>
     data.payments.filter(p => p.date.startsWith(monthKey)).reduce((s, p) => s + Number(p.amount), 0), [data.payments, monthKey]);
 
@@ -108,6 +103,26 @@ export default function App() {
     const student = { ...form, id: "s" + Date.now(), fee: Number(form.fee), status: "Active", joined: today() };
     save({ ...data, students: [student, ...data.students] });
     setModal(null);
+  };
+
+  const deleteStudent = id => {
+    const student = data.students.find(s => s.id === id);
+    if (!student) return;
+    if (!window.confirm("Delete " + student.name + "? This will also remove their payment and attendance records.")) return;
+
+    const attendance = Object.fromEntries(
+      Object.entries(data.attendance || {}).map(([date, marks]) => {
+        const nextMarks = { ...marks };
+        delete nextMarks[id];
+        return [date, nextMarks];
+      })
+    );
+    save({
+      ...data,
+      students: data.students.filter(s => s.id !== id),
+      payments: data.payments.filter(p => p.studentId !== id),
+      attendance
+    });
   };
 
   const addBatch = form => {
@@ -149,7 +164,7 @@ export default function App() {
     <main className="main">
       <header className="topbar"><button className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu/></button><div><div className="eyebrow">TUITION CENTRE</div><h1>{title}</h1></div><div className="top-actions"><div className="search-top"><Search size={17}/><input placeholder="Search students..." value={search} onChange={e=>setSearch(e.target.value)}/></div><div className="avatar">V</div></div></header>
       {page === "dashboard" && <Dashboard data={data} batchName={batchName} paid={paidThisMonth} pending={pending} rate={attendanceRate} onPage={setPage} onModal={setModal}/>}
-      {page === "students" && <Students data={data} batchName={batchName} search={search} onModal={setModal}/>}
+      {page === "students" && <Students data={data} batchName={batchName} search={search} onModal={setModal} onDelete={deleteStudent}/>}
       {page === "batches" && <Batches data={data} onModal={setModal}/>}
       {page === "attendance" && <Attendance data={data} batchName={batchName} onMark={markAttendance}/>}
       {page === "fees" && <Fees data={data} batchName={batchName} onModal={setModal}/>}
@@ -178,13 +193,13 @@ function Dashboard({data,batchName,paid,pending,rate,onPage,onModal}) {
   </div>
 }
 
-function Students({data,batchName,search,onModal}) {
+function Students({data,batchName,search,onModal,onDelete}) {
   const filtered=data.students.filter(s=>(s.name+" "+s.phone+" "+batchName(s.batchId)).toLowerCase().includes(search.toLowerCase()));
-  return <div className="content"><div className="page-actions"><div><p className="muted">Manage your student records</p><h2>All Students <span className="count">{data.students.length}</span></h2></div><button className="primary" onClick={()=>onModal("student")}><Plus size={18}/> Add Student</button></div><section className="panel table-panel"><div className="mobile-search"><Search size={16}/><input placeholder="Search by name, phone or batch" value={search} readOnly/></div><StudentTable students={filtered} batchName={batchName} empty="No students found."/></section></div>
+  return <div className="content"><div className="page-actions"><div><p className="muted">Manage your student records</p><h2>All Students <span className="count">{data.students.length}</span></h2></div><button className="primary" onClick={()=>onModal("student")}><Plus size={18}/> Add Student</button></div><section className="panel table-panel"><div className="mobile-search"><Search size={16}/><input placeholder="Search by name, phone or batch" value={search} readOnly/></div><StudentTable students={filtered} batchName={batchName} onDelete={onDelete} empty="No students found."/></section></div>
 }
 
-function StudentTable({students,batchName,empty="No students yet."}) {
-  return <div className="table-wrap"><table><thead><tr><th>Student</th><th>Batch</th><th>Fee / month</th><th>Status</th><th></th></tr></thead><tbody>{students.map(s=><tr key={s.id}><td><div className="person"><div className="person-avatar">{s.name.split(" ").map(x=>x[0]).join("").slice(0,2)}</div><div><b>{s.name}</b><span>{s.phone}</span></div></div></td><td>{batchName(s.batchId)}</td><td>{money(s.fee)}</td><td><span className="status"><i/> {s.status}</span></td><td><button className="icon-btn"><MoreHorizontal size={18}/></button></td></tr>)}</tbody></table>{!students.length&&<div className="empty">{empty}</div>}</div>
+function StudentTable({students,batchName,onDelete,empty="No students yet."}) {
+  return <div className="table-wrap"><table><thead><tr><th>Student</th><th>Batch</th><th>Fee / month</th><th>Status</th><th>Action</th></tr></thead><tbody>{students.map(s=><tr key={s.id}><td><div className="person"><div className="person-avatar">{s.name.split(" ").map(x=>x[0]).join("").slice(0,2)}</div><div><b>{s.name}</b><span>{s.phone}</span></div></div></td><td>{batchName(s.batchId)}</td><td>{money(s.fee)}</td><td><span className="status"><i/> {s.status}</span></td><td><button className="icon-btn danger" title="Delete student" aria-label={"Delete "+s.name} onClick={()=>onDelete?.(s.id)}><Trash2 size={17}/></button></td></tr>)}</tbody></table>{!students.length&&<div className="empty">{empty}</div>}</div>
 }
 
 function Batches({data,onModal}) {
