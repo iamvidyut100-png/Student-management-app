@@ -38,12 +38,25 @@ function loadData() {
       ["Nomita Kumari", "-"], ["Survala Devi", "-"], ["Aditya Chauhan", ""]
     ];
     const batches = data.batches.some(b => b.id === gccId) ? data.batches : [gccBatch, ...data.batches];
+    const mathId = "b-maths-2nd-year";
+    const mathBatch = { id: mathId, name: "Maths — 2nd Year", subject: "Mathematics", time: "6:00 PM", days: "Mon · Wed · Fri" };
+    const mathStudents = [
+      ["Abhijeet", ""], ["Krishna", "1+"], ["Sourav", ""], ["Gajendra", "1+"],
+      ["Sangmai", "1+"], ["Desh Bandhu 1", "1"], ["Desh Bandhu 2", ""]
+    ];
+    const batchesWithMath = batches.some(b => b.id === mathId) ? batches : [mathBatch, ...batches];
     const existingNames = new Set(data.students.map(s => s.name.trim().toLowerCase()));
     const newStudents = gccStudents.filter(([name]) => !existingNames.has(name.toLowerCase())).map(([name,note], i) => ({
       id: gccId + "-s" + (i + 1), name, phone: "", parent: "", batchId: gccId, fee: 1000, status: "Active", joined: today(), note
     }));
-    const next = newStudents.length ? { ...data, batches, students: [...newStudents, ...data.students] } : { ...data, batches };
-    if (newStudents.length || batches.length !== data.batches.length) localStorage.setItem("student-management-data", JSON.stringify(next));
+    const existingAfterGcc = new Set([...data.students, ...newStudents].map(s => s.name.trim().toLowerCase()));
+    const newMathStudents = mathStudents.filter(([name]) => !existingAfterGcc.has(name.toLowerCase())).map(([name,note], i) => ({
+      id: mathId + "-s" + (i + 1), name, phone: "", parent: "", batchId: mathId, fee: 1000, status: "Active", joined: today(), note
+    }));
+    const allBatches = batchesWithMath;
+    const allNewStudents = [...newStudents, ...newMathStudents];
+    const next = allNewStudents.length || allBatches.length !== data.batches.length ? { ...data, batches: allBatches, students: [...allNewStudents, ...data.students] } : data;
+    if (allNewStudents.length || allBatches.length !== data.batches.length) localStorage.setItem("student-management-data", JSON.stringify(next));
     return next;
   } catch { return seed; }
 }
