@@ -28,37 +28,50 @@ const seed = {
 function loadData() {
   try {
     const saved = localStorage.getItem("student-management-data");
-    if (!saved) return seed;
-    const data = JSON.parse(saved);
-    const gccId = "b-gcc-physics";
-    const gccBatch = { id: gccId, name: "Physics — GCC Batch", subject: "Physics", time: "5:30 PM", days: "Tue · Thu · Sat" };
-    const gccStudents = [
-      ["Krishna Das", "[23/4]1+"], ["Abhijeet Das", "[23/4]"], ["Sourav Chauhan", ""],
-      ["Debosmita Chetry", "1+"], ["Narayan Chouhan", "[25/5]"], ["Gita Sangma", "[27/5]"],
-      ["Nomita Kumari", "-"], ["Survala Devi", "-"], ["Aditya Chauhan", ""]
+    const data = saved ? JSON.parse(saved) : seed;
+    const now = new Date().toISOString().slice(0, 10);
+
+    const batchesToAdd = [
+      { id: "b-gcc-physics", name: "Physics — GCC Batch", subject: "Physics", time: "5:30 PM", days: "Tue · Thu · Sat" },
+      { id: "b-maths-2nd-year", name: "Maths — 2nd Year", subject: "Mathematics", time: "6:00 PM", days: "Mon · Wed · Fri" }
     ];
-    const batches = data.batches.some(b => b.id === gccId) ? data.batches : [gccBatch, ...data.batches];
-    const mathId = "b-maths-2nd-year";
-    const mathBatch = { id: mathId, name: "Maths — 2nd Year", subject: "Mathematics", time: "6:00 PM", days: "Mon · Wed · Fri" };
-    const mathStudents = [
-      ["Abhijeet", ""], ["Krishna", "1+"], ["Sourav", ""], ["Gajendra", "1+"],
-      ["Sangmai", "1+"], ["Desh Bandhu 1", "1"], ["Desh Bandhu 2", ""]
+
+    const studentsToAdd = [
+      { id: "b-gcc-physics-s1", name: "Krishna Das", note: "[23/4]1+", batchId: "b-gcc-physics" },
+      { id: "b-gcc-physics-s2", name: "Abhijeet Das", note: "[23/4]", batchId: "b-gcc-physics" },
+      { id: "b-gcc-physics-s3", name: "Sourav Chauhan", note: "", batchId: "b-gcc-physics" },
+      { id: "b-gcc-physics-s4", name: "Debosmita Chetry", note: "1+", batchId: "b-gcc-physics" },
+      { id: "b-gcc-physics-s5", name: "Narayan Chouhan", note: "[25/5]", batchId: "b-gcc-physics" },
+      { id: "b-gcc-physics-s6", name: "Gita Sangma", note: "[27/5]", batchId: "b-gcc-physics" },
+      { id: "b-gcc-physics-s7", name: "Nomita Kumari", note: "-", batchId: "b-gcc-physics" },
+      { id: "b-gcc-physics-s8", name: "Survala Devi", note: "-", batchId: "b-gcc-physics" },
+      { id: "b-gcc-physics-s9", name: "Aditya Chauhan", note: "", batchId: "b-gcc-physics" },
+      { id: "b-maths-2nd-year-s1", name: "Abhijeet", note: "", batchId: "b-maths-2nd-year" },
+      { id: "b-maths-2nd-year-s2", name: "Krishna", note: "1+", batchId: "b-maths-2nd-year" },
+      { id: "b-maths-2nd-year-s3", name: "Sourav", note: "", batchId: "b-maths-2nd-year" },
+      { id: "b-maths-2nd-year-s4", name: "Gajendra", note: "1+", batchId: "b-maths-2nd-year" },
+      { id: "b-maths-2nd-year-s5", name: "Sangmai", note: "1+", batchId: "b-maths-2nd-year" },
+      { id: "b-maths-2nd-year-s6", name: "Desh Bandhu 1", note: "1", batchId: "b-maths-2nd-year" },
+      { id: "b-maths-2nd-year-s7", name: "Desh Bandhu 2", note: "", batchId: "b-maths-2nd-year" }
     ];
-    const batchesWithMath = batches.some(b => b.id === mathId) ? batches : [mathBatch, ...batches];
-    const existingNames = new Set(data.students.map(s => s.name.trim().toLowerCase()));
-    const newStudents = gccStudents.filter(([name]) => !existingNames.has(name.toLowerCase())).map(([name,note], i) => ({
-      id: gccId + "-s" + (i + 1), name, phone: "", parent: "", batchId: gccId, fee: 1000, status: "Active", joined: today(), note
-    }));
-    const existingAfterGcc = new Set([...data.students, ...newStudents].map(s => s.name.trim().toLowerCase()));
-    const newMathStudents = mathStudents.filter(([name]) => !existingAfterGcc.has(name.toLowerCase())).map(([name,note], i) => ({
-      id: mathId + "-s" + (i + 1), name, phone: "", parent: "", batchId: mathId, fee: 1000, status: "Active", joined: today(), note
-    }));
-    const allBatches = batchesWithMath;
-    const allNewStudents = [...newStudents, ...newMathStudents];
-    const next = allNewStudents.length || allBatches.length !== data.batches.length ? { ...data, batches: allBatches, students: [...allNewStudents, ...data.students] } : data;
-    if (allNewStudents.length || allBatches.length !== data.batches.length) localStorage.setItem("student-management-data", JSON.stringify(next));
+
+    const existingBatchIds = new Set((data.batches || []).map(b => b.id));
+    const batches = [...(data.batches || []), ...batchesToAdd.filter(b => !existingBatchIds.has(b.id))];
+
+    const existingStudentIds = new Set((data.students || []).map(s => s.id));
+    const students = [
+      ...(data.students || []),
+      ...studentsToAdd.filter(s => !existingStudentIds.has(s.id)).map(s => ({
+        ...s, phone: "", parent: "", fee: 1000, status: "Active", joined: now
+      }))
+    ];
+
+    const next = { ...seed, ...data, batches, students, payments: data.payments || [], attendance: data.attendance || {} };
+    localStorage.setItem("student-management-data", JSON.stringify(next));
     return next;
-  } catch { return seed; }
+  } catch {
+    return seed;
+  }
 }
 
 const money = n => "₹" + Number(n || 0).toLocaleString("en-IN");
