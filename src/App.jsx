@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { supabase } from "./lib/supabase";
 import {
   LayoutDashboard, Users, Layers3, CalendarCheck2, WalletCards, Plus,
   Search, MoreHorizontal, Phone, IndianRupee, Check, X, Menu, ChevronRight,
@@ -99,14 +100,132 @@ function loadData() {
 const money = n => "₹" + Number(n || 0).toLocaleString("en-IN");
 const today = () => new Date().toISOString().slice(0, 10);
 
+function AuthScreen({ onReady }) {
+  const [mode, setMode] = useState("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const submit = async () => {
+    setBusy(true); setMessage("");
+    const result = mode === "login"
+      ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
+      : await supabase.auth.signUp({ email: email.trim(), password });
+    setBusy(false);
+    if (result.error) { setMessage(result.error.message); return; }
+    if (mode === "signup" && !result.data.session) {
+      setMessage("Account created. Check your email to confirm, then log in.");
+      setMode("login");
+      return;
+    }
+    if (result.data.session) onReady(result.data.session);
+  };
+
+  return <div className="auth-screen"><div className="auth-card">
+    <div className="brand auth-brand"><div className="brand-mark"><GraduationCap size={21}/></div><div><strong>Student<span>Hub</span></strong><small>Management</small></div></div>
+    <h2>{mode === "login" ? "Welcome back" : "Create your account"}</h2>
+    <p className="muted">Your student data will be securely stored in the cloud.</p>
+    <label>Email<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/></label>
+    <label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="At least 6 characters"/></label>
+    {message && <div className="auth-message">{message}</div>}
+    <button className="primary full" disabled={busy || !email || !password} onClick={submit}>{busy ? "Please wait..." : mode === "login" ? "Sign in" : "Create account"}</button>
+    <button className="auth-switch" onClick={()=>{setMode(mode==="login"?"signup":"login");setMessage("")}}>{mode==="login" ? "New here? Create account" : "Already have an account? Sign in"}</button>
+  </div></div>;
+}
+
+async function cloudLoad(user) {
+  const [batches, students, links, payments, attendance] = await Promise.all([
+    supabase.from("batches").select("*"),
+    supabase.from("students").select("*"),
+    supabase.from("student_batches").select("*"),
+    supabase.from("payments").select("*"),
+    supabase.from("attendance").select("*")
+  ]);
+  for (const result of [batches, students, links, payments, attendance]) if (result.error) throw result.error;
+
+  const local = loadData();
+  const hasCloud = batches.data.length || students.data.length || payments.data.length || attendance.data.length;
+  if (!hasCloud && local.students.length) {
+    const owner_id = user.id;
+    const batchRows = local.batches.map(b => ({ id:b.id, owner_id, name:b.name, subject:b.subject||"", time:b.time||"", days:b.days||"" }));
+    const studentRows = local.students.map(s => ({ id:s.id, owner_id, name:s.name, phone:s.phone||"", parent:s.parent||"", fee:Number(s.fee||0), status:s.status||"Active", joined:s.joined||null, note:s.note||"" }));
+    const linkRows = local.students.flatMap(s => (s.batchIds || (s.batchId ? [s.batchId] : [])).map(batch_id => ({student_id:s.id,batch_id,owner_id})));
+    const paymentRows = local.payments.map(p => ({id:p.id,owner_id,student_id:p.studentId,amount:Number(p.amount||0),date:p.date}));
+    const attendanceRows = Object.entries(local.attendance||{}).flatMap(([date, marks]) => Object.entries(marks||{}).map(([student_id,present]) => ({student_id,owner_id,date,present:!!present})));
+    for (const [table, rows] of [["batches",batchRows],["students",studentRows],["student_batches",linkRows],["payments",paymentRows],["attendance",attendanceRows]]) {
+      if (rows.length) { const { error } = await supabase.from(table).upsert(rows); if (error) throw error; }
+    }
+  }
+
+  const [b,s,l,p,a] = await Promise.all([
+    supabase.from("batches").select("*").order("created_at"),
+    supabase.from("students").select("*").order("created_at"),
+    supabase.from("student_batches").select("*"),
+    supabase.from("payments").select("*").order("date",{ascending:false}),
+    supabase.from("attendance").select("*")
+  ]);
+  for (const result of [b,s,l,p,a]) if (result.error) throw result.error;
+  const linksByStudent = {};
+  (l.data||[]).forEach(x => { (linksByStudent[x.student_id] ||= []).push(x.batch_id); });
+  const attendanceMap = {};
+  (a.data||[]).forEach(x => { (attendanceMap[x.date] ||= {})[x.student_id] = x.present; });
+  return {
+    batches:(b.data||[]).map(x=>({id:x.id,name:x.name,subject:x.subject,time:x.time,days:x.days})),
+    students:(s.data||[]).map(x=>({...x,batchIds:linksByStudent[x.id]||[],batchId:(linksByStudent[x.id]||[])[0]||""})),
+    payments:(p.data||[]).map(x=>({id:x.id,studentId:x.student_id,amount:Number(x.amount),date:x.date})),
+    attendance:attendanceMap
+  };
+}
+
 export default function App() {
-  const [data, setData] = useState(loadData);
+  const [session, setSession] = useState(null);
+  const [data, setData] = useState(null);
   const [page, setPage] = useState("dashboard");
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [loadingCloud, setLoadingCloud] = useState(true);
+  const [cloudError, setCloudError] = useState("");
 
-  const save = next => {
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!active) return;
+      setSession(session);
+      if (session) {
+        try { setData(await cloudLoad(session.user)); }
+        catch (error) { setCloudError(error.message || "Could not load cloud data."); }
+      }
+      setLoadingCloud(false);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (active) setSession(session);
+    });
+    return () => { active = false; listener.subscription.unsubscribe(); };
+  }, []);
+
+  const save = async next => {
+    setData(next);
+    localStorage.setItem("student-management-data", JSON.stringify(next));
+    if (!session?.user) return;
+    const owner_id = session.user.id;
+    try {
+      const batchRows = next.batches.map(b => ({id:b.id,owner_id,name:b.name,subject:b.subject||"",time:b.time||"",days:b.days||""}));
+      const studentRows = next.students.map(s => ({id:s.id,owner_id,name:s.name,phone:s.phone||"",parent:s.parent||"",fee:Number(s.fee||0),status:s.status||"Active",joined:s.joined||null,note:s.note||""}));
+      const linkRows = next.students.flatMap(s => (s.batchIds || (s.batchId ? [s.batchId] : [])).map(batch_id => ({student_id:s.id,batch_id,owner_id})));
+      const paymentRows = next.payments.map(p => ({id:p.id,owner_id,student_id:p.studentId,amount:Number(p.amount||0),date:p.date}));
+      const attendanceRows = Object.entries(next.attendance||{}).flatMap(([date,marks]) => Object.entries(marks||{}).map(([student_id,present]) => ({student_id,owner_id,date,present:!!present})));
+      for (const [table, rows] of [["batches",batchRows],["students",studentRows],["student_batches",linkRows],["payments",paymentRows],["attendance",attendanceRows]]) {
+        const { error } = await supabase.from(table).upsert(rows); if (error) throw error;
+      }
+    } catch (error) { console.error("Cloud sync failed:", error); setCloudError("Cloud sync failed. Your local copy is still available."); }
+  };
+
+  if (loadingCloud) return <div className="auth-screen"><div className="auth-card"><h2>StudentHub</h2><p>Connecting securely...</p></div></div>;
+  if (!session) return <AuthScreen onReady={setSession}/>;
+  if (!data) return <div className="auth-screen"><div className="auth-card"><h2>StudentHub</h2><p>{cloudError || "Loading your data..."}</p><button className="primary full" onClick={()=>window.location.reload()}>Retry</button></div></div>;
+  
     setData(next);
     localStorage.setItem("student-management-data", JSON.stringify(next));
   };
@@ -220,12 +339,12 @@ export default function App() {
     </aside>
     {mobileOpen && <div className="overlay" onClick={() => setMobileOpen(false)}/>}
     <main className="main">
-      <header className="topbar"><button className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu/></button><div><div className="eyebrow">TUITION CENTRE</div><h1>{title}</h1></div><div className="top-actions"><div className="search-top"><Search size={17}/><input placeholder="Search students..." value={search} onChange={e=>setSearch(e.target.value)}/></div><div className="avatar">V</div></div></header>
+      <header className="topbar"><button className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu/></button><div><div className="eyebrow">TUITION CENTRE</div><h1>{title}</h1></div><div className="top-actions"><div className="search-top"><Search size={17}/><input placeholder="Search students..." value={search} onChange={e=>setSearch(e.target.value)}/></div><div className="avatar" title={session.user.email}>{(session.user.email||"V")[0].toUpperCase()}</div><button className="icon-btn" title="Sign out" onClick={()=>supabase.auth.signOut()}>↪</button></div></header>
       {page === "dashboard" && <Dashboard data={data} batchName={batchName} batchNames={batchNames} paid={paidThisMonth} pending={pending} rate={attendanceRate} onPage={setPage} onModal={setModal}/>}
       {page === "students" && <Students data={data} batchName={batchName} search={search} batchNames={batchNames} onModal={setModal} onEdit={id=>setModal({type:"editStudent",id})} onDelete={deleteStudent}/>}
       {page === "batches" && <Batches data={data} onModal={setModal}/>}
       {page === "attendance" && <Attendance data={data} batchName={batchName} onMark={markAttendance}/>}
-      {page === "fees" && <Fees data={data} batchName={batchName} onModal={setModal}/>}
+      {page === "fees" && <Fees data={data} batchName={batchName} onModal={setModal}/>} {cloudError && <div className="cloud-warning">{cloudError}</div>}
     </main>
     {modal === "student" && <StudentModal batches={data.batches} onClose={()=>setModal(null)} onSave={addStudent}/>}
     {modal?.type === "editStudent" && <StudentModal student={data.students.find(s=>s.id===modal.id)} batches={data.batches} onClose={()=>setModal(null)} onSave={f=>editStudent(modal.id,f)}/>}
