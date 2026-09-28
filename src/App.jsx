@@ -225,11 +225,6 @@ export default function App() {
   if (loadingCloud) return <div className="auth-screen"><div className="auth-card"><h2>StudentHub</h2><p>Connecting securely...</p></div></div>;
   if (!session) return <AuthScreen onReady={setSession}/>;
   if (!data) return <div className="auth-screen"><div className="auth-card"><h2>StudentHub</h2><p>{cloudError || "Loading your data..."}</p><button className="primary full" onClick={()=>window.location.reload()}>Retry</button></div></div>;
-  
-    setData(next);
-    localStorage.setItem("student-management-data", JSON.stringify(next));
-  };
-
   const getBatchIds = student => {
     const ids = Array.isArray(student?.batchIds) && student.batchIds.length
       ? student.batchIds
