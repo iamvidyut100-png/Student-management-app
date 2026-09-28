@@ -105,6 +105,8 @@ export default function App() {
     setModal(null);
   };
 
+  const editStudent = (id, form) => { save({ ...data, students: data.students.map(s => s.id === id ? { ...s, ...form, fee: Number(form.fee) } : s) }); setModal(null); };
+
   const deleteStudent = id => {
     const student = data.students.find(s => s.id === id);
     if (!student) return;
@@ -164,12 +166,13 @@ export default function App() {
     <main className="main">
       <header className="topbar"><button className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu/></button><div><div className="eyebrow">TUITION CENTRE</div><h1>{title}</h1></div><div className="top-actions"><div className="search-top"><Search size={17}/><input placeholder="Search students..." value={search} onChange={e=>setSearch(e.target.value)}/></div><div className="avatar">V</div></div></header>
       {page === "dashboard" && <Dashboard data={data} batchName={batchName} paid={paidThisMonth} pending={pending} rate={attendanceRate} onPage={setPage} onModal={setModal}/>}
-      {page === "students" && <Students data={data} batchName={batchName} search={search} onModal={setModal} onDelete={deleteStudent}/>}
+      {page === "students" && <Students data={data} batchName={batchName} search={search} onModal={setModal} onEdit={id=>setModal({type:"editStudent",id})} onDelete={deleteStudent}/>}
       {page === "batches" && <Batches data={data} onModal={setModal}/>}
       {page === "attendance" && <Attendance data={data} batchName={batchName} onMark={markAttendance}/>}
       {page === "fees" && <Fees data={data} batchName={batchName} onModal={setModal}/>}
     </main>
     {modal === "student" && <StudentModal batches={data.batches} onClose={()=>setModal(null)} onSave={addStudent}/>}
+    {modal?.type === "editStudent" && <StudentModal student={data.students.find(s=>s.id===modal.id)} batches={data.batches} onClose={()=>setModal(null)} onSave={f=>editStudent(modal.id,f)}/>}
     {modal === "batch" && <BatchModal onClose={()=>setModal(null)} onSave={addBatch}/>}
     {modal === "payment" && <PaymentModal students={data.students} onClose={()=>setModal(null)} onSave={recordPayment}/>}
   </div>;
@@ -193,13 +196,13 @@ function Dashboard({data,batchName,paid,pending,rate,onPage,onModal}) {
   </div>
 }
 
-function Students({data,batchName,search,onModal,onDelete}) {
+function Students({data,batchName,search,onModal,onEdit,onDelete}) {
   const filtered=data.students.filter(s=>(s.name+" "+s.phone+" "+batchName(s.batchId)).toLowerCase().includes(search.toLowerCase()));
-  return <div className="content"><div className="page-actions"><div><p className="muted">Manage your student records</p><h2>All Students <span className="count">{data.students.length}</span></h2></div><button className="primary" onClick={()=>onModal("student")}><Plus size={18}/> Add Student</button></div><section className="panel table-panel"><div className="mobile-search"><Search size={16}/><input placeholder="Search by name, phone or batch" value={search} readOnly/></div><StudentTable students={filtered} batchName={batchName} onDelete={onDelete} empty="No students found."/></section></div>
+  return <div className="content"><div className="page-actions"><div><p className="muted">Manage your student records</p><h2>All Students <span className="count">{data.students.length}</span></h2></div><button className="primary" onClick={()=>onModal("student")}><Plus size={18}/> Add Student</button></div><section className="panel table-panel"><div className="mobile-search"><Search size={16}/><input placeholder="Search by name, phone or batch" value={search} readOnly/></div><StudentTable students={filtered} batchName={batchName} onEdit={onEdit} onDelete={onDelete} empty="No students found."/></section></div>
 }
 
-function StudentTable({students,batchName,onDelete,empty="No students yet."}) {
-  return <div className="table-wrap"><table><thead><tr><th>Student</th><th>Batch</th><th>Fee / month</th><th>Status</th><th>Action</th></tr></thead><tbody>{students.map(s=><tr key={s.id}><td><div className="person"><div className="person-avatar">{s.name.split(" ").map(x=>x[0]).join("").slice(0,2)}</div><div><b>{s.name}</b><span>{s.phone}</span></div></div></td><td>{batchName(s.batchId)}</td><td>{money(s.fee)}</td><td><span className="status"><i/> {s.status}</span></td><td><button className="icon-btn danger" title="Delete student" aria-label={"Delete "+s.name} onClick={()=>onDelete?.(s.id)}><Trash2 size={17}/></button></td></tr>)}</tbody></table>{!students.length&&<div className="empty">{empty}</div>}</div>
+function StudentTable({students,batchName,onEdit,onDelete,empty="No students yet."}) {
+  return <div className="table-wrap"><table><thead><tr><th>Student</th><th>Batch</th><th>Fee / month</th><th>Status</th><th>Action</th></tr></thead><tbody>{students.map(s=><tr key={s.id}><td><div className="person"><div className="person-avatar">{s.name.split(" ").map(x=>x[0]).join("").slice(0,2)}</div><div><b>{s.name}</b><span>{s.phone}</span></div></div></td><td>{batchName(s.batchId)}</td><td>{money(s.fee)}</td><td><span className="status"><i/> {s.status}</span></td><td><div className="row-actions"><button className="icon-btn edit" title="Edit student" onClick={()=>onEdit?.(s.id)}>✎</button><button className="icon-btn danger" title="Delete student" onClick={()=>onDelete?.(s.id)}><Trash2 size={17}/></button></div></td></tr>)}</tbody></table>{!students.length&&<div className="empty">{empty}</div>}</div>
 }
 
 function Batches({data,onModal}) {
@@ -225,10 +228,10 @@ function Fees({data,batchName,onModal}) {
 function Modal({title,children,onClose,onSubmit,submit="Save"}) {
   return <div className="modal-backdrop" onMouseDown={onClose}><div className="modal" onMouseDown={e=>e.stopPropagation()}><div className="modal-head"><h3>{title}</h3><button onClick={onClose}>×</button></div>{children}<button className="primary full" onClick={onSubmit}>{submit}</button></div></div>
 }
-function StudentModal({batches,onClose,onSave}) {
-  const [f,setF]=useState({name:"",phone:"",parent:"",batchId:batches[0]?.id||"",fee:1000});
+function StudentModal({batches,onClose,onSave,student}) {
+  const [f,setF]=useState(student ? {name:student.name||"",phone:student.phone||"",parent:student.parent||"",batchId:student.batchId||batches[0]?.id||"",fee:student.fee||1000,status:student.status||"Active"} : {name:"",phone:"",parent:"",batchId:batches[0]?.id||"",fee:1000,status:"Active"});
   const set=(k,v)=>setF({...f,[k]:v});
-  return <Modal title="Add student" onClose={onClose} onSubmit={()=>f.name&&onSave(f)}><div className="form-grid"><label>Student name<input value={f.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. Rahul Das"/></label><label>Student phone<input value={f.phone} onChange={e=>set("phone",e.target.value)} placeholder="10-digit number"/></label><label>Parent / guardian<input value={f.parent} onChange={e=>set("parent",e.target.value)} placeholder="Parent name"/></label><label>Monthly fee<input type="number" value={f.fee} onChange={e=>set("fee",e.target.value)}/></label><label className="wide">Batch<select value={f.batchId} onChange={e=>set("batchId",e.target.value)}>{batches.map(b=><option value={b.id} key={b.id}>{b.name}</option>)}</select></label></div></Modal>
+  return <Modal title={student ? "Edit student" : "Add student"} onClose={onClose} onSubmit={()=>f.name&&onSave(f)}><div className="form-grid"><label>Student name<input value={f.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. Rahul Das"/></label><label>Student phone<input value={f.phone} onChange={e=>set("phone",e.target.value)} placeholder="10-digit number"/></label><label>Parent / guardian<input value={f.parent} onChange={e=>set("parent",e.target.value)} placeholder="Parent name"/></label><label>Monthly fee<input type="number" value={f.fee} onChange={e=>set("fee",e.target.value)}/></label><label>Status<select value={f.status} onChange={e=>set("status",e.target.value)}><option>Active</option><option>Inactive</option></select></label><label className="wide">Batch<select value={f.batchId} onChange={e=>set("batchId",e.target.value)}>{batches.map(b=><option value={b.id} key={b.id}>{b.name}</option>)}</select></label></div></Modal>
 }
 function BatchModal({onClose,onSave}) {
   const [f,setF]=useState({name:"",subject:"",time:"6:00 PM",days:"Mon · Wed · Fri"}); const set=(k,v)=>setF({...f,[k]:v});
