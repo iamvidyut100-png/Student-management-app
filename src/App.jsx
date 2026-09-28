@@ -62,7 +62,22 @@ function loadData() {
         ...s, phone: "", parent: "", fee: 1000, status: "Active", joined: now
       }))
     ];
-    const migratedStudents = students.map(s => ({ ...s, batchIds: Array.isArray(s.batchIds) ? s.batchIds : (s.batchId ? [s.batchId] : []) }));
+    const migratedStudents = students.map(s => {
+      const rawIds = Array.isArray(s.batchIds) && s.batchIds.length
+        ? s.batchIds
+        : (s.batchId ? [s.batchId] : []);
+      const normalizedIds = rawIds
+        .map(value => {
+          const batch = batches.find(b => b.id === value || b.name === value);
+          return batch?.id || null;
+        })
+        .filter(Boolean);
+      return {
+        ...s,
+        batchIds: normalizedIds,
+        batchId: normalizedIds[0] || ""
+      };
+    });
     const demoStudentIds = new Set(["s1", "s2", "s3", "s4"]);
     const cleanedStudents = migratedStudents.filter(s => !demoStudentIds.has(s.id));
     const cleanedPayments = (data.payments || []).filter(p => !demoStudentIds.has(p.studentId));
@@ -96,8 +111,16 @@ export default function App() {
     localStorage.setItem("student-management-data", JSON.stringify(next));
   };
 
-  const batchName = id => data.batches.find(b => b.id === id)?.name || "Unassigned";
-  const batchNames = ids => (ids || []).map(batchName).join(" · ") || "Unassigned";
+  const getBatchIds = student => {
+    const ids = Array.isArray(student?.batchIds) && student.batchIds.length
+      ? student.batchIds
+      : (student?.batchId ? [student.batchId] : []);
+    return ids
+      .map(value => data.batches.find(b => b.id === value || b.name === value)?.id)
+      .filter(Boolean);
+  };
+  const batchName = id => data.batches.find(b => b.id === id || b.name === id)?.name || "Unassigned";
+  const batchNames = ids => (ids || []).map(batchName).filter(name => name !== "Unassigned").join(" · ") || "Unassigned";
   const monthKey = new Date().toISOString().slice(0, 7);
   const paidThisMonth = useMemo(() =>
     data.payments.filter(p => p.date.startsWith(monthKey)).reduce((s, p) => s + Number(p.amount), 0), [data.payments, monthKey]);
@@ -112,13 +135,32 @@ export default function App() {
   const attendanceRate = attendanceToday.length ? Math.round((presentToday / attendanceToday.length) * 100) : 0;
 
   const addStudent = form => {
-    const student = { ...form, id: "s" + Date.now(), batchIds: form.batchIds || [], fee: Number(form.fee), status: "Active", joined: today() };
+    const selectedBatchIds = (form.batchIds || (form.batchId ? [form.batchId] : []))
+      .map(value => data.batches.find(b => b.id === value || b.name === value)?.id)
+      .filter(Boolean);
+    const student = {
+      ...form,
+      id: "s" + Date.now(),
+      batchIds: selectedBatchIds,
+      batchId: selectedBatchIds[0] || "",
+      fee: Number(form.fee),
+      status: form.status || "Active",
+      joined: today()
+    };
     save({ ...data, students: [student, ...data.students] });
     setModal(null);
   };
 
   const editStudent = (id, form) => {
-    save({ ...data, students: data.students.map(s => s.id === id ? { ...s, ...form, batchIds: form.batchIds || [], fee: Number(form.fee) } : s) });
+    const selectedBatchIds = (form.batchIds || (form.batchId ? [form.batchId] : []))
+      .map(value => data.batches.find(b => b.id === value || b.name === value)?.id)
+      .filter(Boolean);
+    save({
+      ...data,
+      students: data.students.map(s => s.id === id
+        ? { ...s, ...form, batchIds: selectedBatchIds, batchId: selectedBatchIds[0] || "", fee: Number(form.fee) }
+        : s)
+    });
     setModal(null);
   };
 
@@ -211,7 +253,7 @@ function Dashboard({data,batchName,batchNames,paid,pending,rate,onPage,onModal})
 }
 
 function Students({data,batchName,batchNames,search,onModal,onEdit,onDelete}) {
-  const filtered=data.students.filter(s=>(s.name+" "+s.phone+" "+batchNames(s.batchIds || (s.batchId ? [s.batchId] : []))).toLowerCase().includes(search.toLowerCase()));
+  const filtered=data.students.filter(s=>(s.name+" "+s.phone+" "+batchNames((s.batchIds || (s.batchId ? [s.batchId] : [])))).toLowerCase().includes(search.toLowerCase()));
   return <div className="content"><div className="page-actions"><div><p className="muted">Manage your student records</p><h2>All Students <span className="count">{data.students.length}</span></h2></div><button className="primary" onClick={()=>onModal("student")}><Plus size={18}/> Add Student</button></div><section className="panel table-panel"><div className="mobile-search"><Search size={16}/><input placeholder="Search by name, phone or batch" value={search} readOnly/></div><StudentTable students={filtered} batchName={batchName} onEdit={onEdit} onDelete={onDelete} empty="No students found."/></section></div>
 }
 
@@ -220,7 +262,7 @@ function StudentTable({students,batchName,batchNames,onEdit,onDelete,empty="No s
 }
 
 function Batches({data,onModal}) {
-  return <div className="content"><div className="page-actions"><div><p className="muted">Organize your classes</p><h2> Batches <span className="count">{data.batches.length}</span></h2></div><button className="primary" onClick={()=>onModal("batch")}><Plus size={18}/> New Batch</button></div><div className="batch-grid">{data.batches.map(b=>{const count=data.students.filter(s=>(s.batchIds || (s.batchId ? [s.batchId] : [])).includes(b.id)).length;return <div className="batch-card" key={b.id}><div className="batch-icon"><Layers3/></div><div className="batch-main"><h3>{b.name}</h3><span>{b.subject}</span></div><div className="batch-meta"><div><b>{count}</b><span>Students</span></div><div><b>{b.time}</b><span>Class time</span></div></div><div className="days">{b.days}</div></div>})}</div></div>
+  return <div className="content"><div className="page-actions"><div><p className="muted">Organize your classes</p><h2> Batches <span className="count">{data.batches.length}</span></h2></div><button className="primary" onClick={()=>onModal("batch")}><Plus size={18}/> New Batch</button></div><div className="batch-grid">{data.batches.map(b=>{const count=data.students.filter(s=>(s.batchIds || (s.batchId ? [s.batchId] : [])).some(id => id === b.id || data.batches.some(x => x.id === id && x.name === b.name))).length;return <div className="batch-card" key={b.id}><div className="batch-icon"><Layers3/></div><div className="batch-main"><h3>{b.name}</h3><span>{b.subject}</span></div><div className="batch-meta"><div><b>{count}</b><span>Students</span></div><div><b>{b.time}</b><span>Class time</span></div></div><div className="days">{b.days}</div></div>})}</div></div>
 }
 
 function Attendance({data,batchName,onMark}) {
