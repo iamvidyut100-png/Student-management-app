@@ -1,0 +1,8 @@
+{
+  "appId": "com.nexgen.studentmanagement",
+  "appName": "Student Management",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}
