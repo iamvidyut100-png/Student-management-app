@@ -63,7 +63,18 @@ function loadData() {
       }))
     ];
     const migratedStudents = students.map(s => ({ ...s, batchIds: Array.isArray(s.batchIds) ? s.batchIds : (s.batchId ? [s.batchId] : []) }));
-    const next = { ...seed, ...data, batches, students: migratedStudents, payments: data.payments || [], attendance: data.attendance || {} };
+    // Remove the original demo students from the app data.
+    const demoStudentIds = new Set(["s1", "s2", "s3", "s4"]);
+    const cleanedStudents = migratedStudents.filter(s => !demoStudentIds.has(s.id));
+    const cleanedPayments = (data.payments || []).filter(p => !demoStudentIds.has(p.studentId));
+    const cleanedAttendance = Object.fromEntries(
+      Object.entries(data.attendance || {}).map(([date, marks]) => {
+        const nextMarks = { ...marks };
+        demoStudentIds.forEach(id => delete nextMarks[id]);
+        return [date, nextMarks];
+      })
+    );
+    const next = { ...seed, ...data, batches, students: cleanedStudents, payments: cleanedPayments, attendance: cleanedAttendance };
     localStorage.setItem("student-management-data", JSON.stringify(next));
     return next;
   } catch {
