@@ -190,33 +190,17 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
-    const start = async () => {
-      try {
-        const { data: current } = await supabase.auth.getSession();
-        let nextSession = current.session;
-        // Keep the app login-free for its single owner while retaining Supabase Auth
-        // in the background so row-level security can protect cloud data.
-        if (!nextSession) {
-          const { data, error } = await supabase.auth.signInAnonymously();
-          if (error) throw error;
-          nextSession = data.session;
-        }
-        if (!active) return;
-        setSession(nextSession);
-        if (nextSession) setData(await cloudLoad(nextSession.user));
-      } catch (error) {
-        if (active) {
-          setCloudError(error.message || "Could not connect to cloud storage.");
-          // Keep the locally saved copy available even if anonymous auth/cloud is unavailable.
-          setData(loadData());
-        }
-      } finally {
-        if (active) setLoadingCloud(false);
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!active) return;
+      setSession(session);
+      if (session) {
+        try { setData(await cloudLoad(session.user)); }
+        catch (error) { setCloudError(error.message || "Could not load cloud data."); }
       }
-    };
-    start();
+      setLoadingCloud(false);
+    });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (active && session) setSession(session);
+      if (active) setSession(session);
     });
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
@@ -238,6 +222,7 @@ export default function App() {
     } catch (error) { console.error("Cloud sync failed:", error); setCloudError("Cloud sync failed. Your local copy is still available."); }
   };
 
+  if (!session) return <AuthScreen onReady={setSession}/>;
   if (loadingCloud) return <div className="auth-screen"><div className="auth-card"><h2>StudentHub</h2><p>Connecting securely...</p></div></div>;
   if (!data) return <div className="auth-screen"><div className="auth-card"><h2>StudentHub</h2><p>{cloudError || "Loading your data..."}</p><button className="primary full" onClick={()=>window.location.reload()}>Retry</button></div></div>;
   const getBatchIds = student => {
@@ -251,13 +236,12 @@ export default function App() {
   const batchName = id => data.batches.find(b => b.id === id || b.name === id)?.name || "Unassigned";
   const batchNames = ids => (ids || []).map(batchName).filter(name => name !== "Unassigned").join(" · ") || "Unassigned";
   const monthKey = new Date().toISOString().slice(0, 7);
-  const paidThisMonth = useMemo(() =>
-    data.payments.filter(p => p.date.startsWith(monthKey)).reduce((s, p) => s + Number(p.amount), 0), [data.payments, monthKey]);
+  const paidThisMonth = data.payments.filter(p => p.date.startsWith(monthKey)).reduce((s, p) => s + Number(p.amount), 0);
 
-  const pending = useMemo(() => data.students.reduce((s, st) => {
+  const pending = data.students.reduce((s, st) => {
     const paid = data.payments.filter(p => p.studentId === st.id && p.date.startsWith(monthKey)).reduce((a,p) => a + Number(p.amount), 0);
     return s + Math.max(0, Number(st.fee) - paid);
-  }, 0), [data]);
+  }, 0);
 
   const attendanceToday = Object.values(data.attendance[today()] || {});
   const presentToday = attendanceToday.filter(Boolean).length;
