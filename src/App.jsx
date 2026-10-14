@@ -190,17 +190,33 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!active) return;
-      setSession(session);
-      if (session) {
-        try { setData(await cloudLoad(session.user)); }
-        catch (error) { setCloudError(error.message || "Could not load cloud data."); }
+    const start = async () => {
+      try {
+        const { data: current } = await supabase.auth.getSession();
+        let nextSession = current.session;
+        // Keep the app login-free for its single owner while retaining Supabase Auth
+        // in the background so row-level security can protect cloud data.
+        if (!nextSession) {
+          const { data, error } = await supabase.auth.signInAnonymously();
+          if (error) throw error;
+          nextSession = data.session;
+        }
+        if (!active) return;
+        setSession(nextSession);
+        if (nextSession) setData(await cloudLoad(nextSession.user));
+      } catch (error) {
+        if (active) {
+          setCloudError(error.message || "Could not connect to cloud storage.");
+          // Keep the locally saved copy available even if anonymous auth/cloud is unavailable.
+          setData(loadData());
+        }
+      } finally {
+        if (active) setLoadingCloud(false);
       }
-      setLoadingCloud(false);
-    });
+    };
+    start();
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (active) setSession(session);
+      if (active && session) setSession(session);
     });
     return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
@@ -223,7 +239,6 @@ export default function App() {
   };
 
   if (loadingCloud) return <div className="auth-screen"><div className="auth-card"><h2>StudentHub</h2><p>Connecting securely...</p></div></div>;
-  if (!session) return <AuthScreen onReady={setSession}/>;
   if (!data) return <div className="auth-screen"><div className="auth-card"><h2>StudentHub</h2><p>{cloudError || "Loading your data..."}</p><button className="primary full" onClick={()=>window.location.reload()}>Retry</button></div></div>;
   const getBatchIds = student => {
     const ids = Array.isArray(student?.batchIds) && student.batchIds.length
