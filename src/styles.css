@@ -14,3 +14,10 @@
 .auth-message{padding:10px 12px;border-radius:9px;background:#fff7ed;color:#9a3412;font-size:12px;margin:12px 0}
 .auth-switch{width:100%;border:0;background:none;color:#2563eb;margin-top:13px;cursor:pointer}
 .cloud-warning{position:fixed;bottom:14px;right:14px;background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;padding:10px 14px;border-radius:10px;font-size:12px;box-shadow:0 5px 20px rgba(0,0,0,.08);z-index:20}
+
+/* Mobile modal fix: keep the Save action visible and make long forms scrollable. */
+.modal{max-height:calc(100dvh - 36px);overflow-y:auto;overscroll-behavior:contain;}
+.modal>.primary.full{position:sticky;bottom:0;flex-shrink:0;margin-top:8px;box-shadow:0 -8px 12px rgba(255,255,255,.92);}
+.modal .batch-checks{display:grid;gap:8px;}
+.modal .check-option{display:flex;align-items:center;gap:10px;min-height:38px;font-size:12px;}
+.modal .check-option input{width:22px;height:22px;flex:0 0 22px;margin:0;accent-color:#1478ee;}
