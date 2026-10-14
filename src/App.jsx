@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Layers3, CalendarCheck2, WalletCards, Plus,
   Search, MoreHorizontal, Phone, IndianRupee, Check, X, Menu, ChevronRight,
   GraduationCap, Bell, TrendingUp, UserRoundPlus, CircleDollarSign, ClipboardCheck,
-  Trash2
+  Trash2, Download
 } from "lucide-react";
 
 const seed = {
@@ -79,21 +79,14 @@ function loadData() {
         batchId: normalizedIds[0] || ""
       };
     });
-    const demoStudentIds = new Set(["s1", "s2", "s3", "s4"]);
-    const cleanedStudents = migratedStudents.filter(s => !demoStudentIds.has(s.id));
-    const cleanedPayments = (data.payments || []).filter(p => !demoStudentIds.has(p.studentId));
-    const cleanedAttendance = Object.fromEntries(
-      Object.entries(data.attendance || {}).map(([date, marks]) => {
-        const nextMarks = { ...marks };
-        demoStudentIds.forEach(id => delete nextMarks[id]);
-        return [date, nextMarks];
-      })
-    );
-    const next = { ...seed, ...data, batches, students: cleanedStudents, payments: cleanedPayments, attendance: cleanedAttendance };
+    // Never delete records based only on IDs: a real student may have one of these IDs.
+    // Keep all existing students, payments, and attendance during migrations.
+    const next = { ...seed, ...data, batches, students: migratedStudents, payments: data.payments || [], attendance: data.attendance || {} };
     localStorage.setItem("student-management-data", JSON.stringify(next));
     return next;
-  } catch {
-    return seed;
+  } catch (error) {
+    // Do not silently replace unreadable user data with demo data.
+    throw new Error("Saved local data could not be read. Do not clear app storage; export/recover the original data first. " + (error?.message || ""));
   }
 }
 
@@ -222,6 +215,28 @@ export default function App() {
     } catch (error) { console.error("Cloud sync failed:", error); setCloudError("Cloud sync failed. Your local copy is still available."); }
   };
 
+  const exportBackup = () => {
+    try {
+      const payload = {
+        app: "Student Management",
+        formatVersion: 1,
+        exportedAt: new Date().toISOString(),
+        data
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "student-management-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+    } catch (error) {
+      setCloudError("Backup export failed: " + (error?.message || "Unknown error"));
+    }
+  };
+
   if (loadingCloud) return <div className="auth-screen"><div className="auth-card"><h2>StudentHub</h2><p>Connecting securely...</p></div></div>;
   if (!session) return <AuthScreen onReady={setSession}/>;
   if (!data) return <div className="auth-screen"><div className="auth-card"><h2>StudentHub</h2><p>{cloudError || "Loading your data..."}</p><button className="primary full" onClick={()=>window.location.reload()}>Retry</button></div></div>;
@@ -334,7 +349,7 @@ export default function App() {
     </aside>
     {mobileOpen && <div className="overlay" onClick={() => setMobileOpen(false)}/>}
     <main className="main">
-      <header className="topbar"><button className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu/></button><div><div className="eyebrow">TUITION CENTRE</div><h1>{title}</h1></div><div className="top-actions"><div className="search-top"><Search size={17}/><input placeholder="Search students..." value={search} onChange={e=>setSearch(e.target.value)}/></div><div className="avatar" title={session.user.email}>{(session.user.email||"V")[0].toUpperCase()}</div><button className="icon-btn" title="Sign out" onClick={()=>supabase.auth.signOut()}>↪</button></div></header>
+      <header className="topbar"><button className="mobile-menu" onClick={() => setMobileOpen(true)}><Menu/></button><div><div className="eyebrow">TUITION CENTRE</div><h1>{title}</h1></div><div className="top-actions"><div className="search-top"><Search size={17}/><input placeholder="Search students..." value={search} onChange={e=>setSearch(e.target.value)}/></div><div className="avatar" title={session.user.email}>{(session.user.email||"V")[0].toUpperCase()}</div><button className="icon-btn" title="Export data backup" aria-label="Export data backup" onClick={exportBackup}><Download size={18}/></button><button className="icon-btn" title="Sign out" onClick={()=>supabase.auth.signOut()}>↪</button></div></header>
       {page === "dashboard" && <Dashboard data={data} batchName={batchName} batchNames={batchNames} paid={paidThisMonth} pending={pending} rate={attendanceRate} onPage={setPage} onModal={setModal}/>}
       {page === "students" && <Students data={data} batchName={batchName} search={search} batchNames={batchNames} onModal={setModal} onEdit={id=>setModal({type:"editStudent",id})} onDelete={deleteStudent}/>}
       {page === "batches" && <Batches data={data} onModal={setModal}/>}
