@@ -302,6 +302,11 @@ export default function App() {
     setModal(null);
   };
 
+  const editBatch = (id, form) => {
+    save({ ...data, batches: data.batches.map(b => b.id === id ? { ...b, ...form } : b) });
+    setModal(null);
+  };
+
   const recordPayment = form => {
     const payment = { ...form, id: "p" + Date.now(), amount: Number(form.amount), date: today() };
     save({ ...data, payments: [payment, ...data.payments] });
@@ -343,6 +348,9 @@ export default function App() {
     {modal === "student" && <StudentModal batches={data.batches} onClose={()=>setModal(null)} onSave={addStudent}/>}
     {modal?.type === "editStudent" && <StudentModal student={data.students.find(s=>s.id===modal.id)} batches={data.batches} onClose={()=>setModal(null)} onSave={f=>editStudent(modal.id,f)}/>}
     {modal === "batch" && <BatchModal onClose={()=>setModal(null)} onSave={addBatch}/>}
+    {modal?.type === "editBatch" && <BatchModal batch={data.batches.find(b=>b.id===modal.id)} onClose={()=>setModal(null)} onSave={f=>editBatch(modal.id,f)}/>}
+    {modal?.type === "viewBatch" && <BatchDetails batch={data.batches.find(b=>b.id===modal.id)} students={data.students.filter(s=>(s.batchIds || (s.batchId ? [s.batchId] : [])).includes(modal.id))} onClose={()=>setModal(null)} onAddStudent={()=>setModal({type:"addStudentToBatch",id:modal.id})} onEdit={()=>setModal({type:"editBatch",id:modal.id})}/>}
+    {modal?.type === "addStudentToBatch" && <StudentModal batches={data.batches} initialBatchIds={[modal.id]} onClose={()=>setModal(null)} onSave={addStudent}/ >}
     {modal === "payment" && <PaymentModal students={data.students} onClose={()=>setModal(null)} onSave={recordPayment}/>}
   </div>;
 }
@@ -375,7 +383,7 @@ function StudentTable({students,batchName,batchNames,onEdit,onDelete,empty="No s
 }
 
 function Batches({data,onModal}) {
-  return <div className="content"><div className="page-actions"><div><p className="muted">Organize your classes</p><h2> Batches <span className="count">{data.batches.length}</span></h2></div><button className="primary" onClick={()=>onModal("batch")}><Plus size={18}/> New Batch</button></div><div className="batch-grid">{data.batches.map(b=>{const count=data.students.filter(s=>(s.batchIds || (s.batchId ? [s.batchId] : [])).some(id => id === b.id || data.batches.some(x => x.id === id && x.name === b.name))).length;return <div className="batch-card" key={b.id}><div className="batch-icon"><Layers3/></div><div className="batch-main"><h3>{b.name}</h3><span>{b.subject}</span></div><div className="batch-meta"><div><b>{count}</b><span>Students</span></div><div><b>{b.time}</b><span>Class time</span></div></div><div className="days">{b.days}</div></div>})}</div></div>
+  return <div className="content"><div className="page-actions"><div><p className="muted">Organize your classes</p><h2> Batches <span className="count">{data.batches.length}</span></h2></div><button className="primary" onClick={()=>onModal("batch")}><Plus size={18}/> New Batch</button></div><div className="batch-grid">{data.batches.map(b=>{const count=data.students.filter(s=>(s.batchIds || (s.batchId ? [s.batchId] : [])).includes(b.id)).length;return <div className="batch-card" key={b.id}><div className="batch-icon"><Layers3/></div><div className="batch-main"><h3>{b.name}</h3><span>{b.subject}</span></div><div className="batch-meta"><div><b>{count}</b><span>Students</span></div><div><b>{b.time}</b><span>Class time</span></div></div><div className="days">{b.days}</div><div className="batch-actions"><button className="soft" onClick={()=>onModal({type:"viewBatch",id:b.id})}>View students</button><button className="soft" onClick={()=>onModal({type:"editBatch",id:b.id})}>Edit batch</button><button className="primary" onClick={()=>onModal({type:"addStudentToBatch",id:b.id})}><Plus size={16}/> Add student</button></div></div>})}</div></div>
 }
 
 function Attendance({data,batchName,onMark}) {
@@ -471,9 +479,21 @@ function StudentModal({batches,onClose,onSave,student}) {
   return <Modal title={student ? "Edit student" : "Add student"} onClose={onClose} onSubmit={()=>f.name&&onSave(f)}><div className="form-grid"><label>Student name<input value={f.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. Rahul Das"/></label><label>Student phone<input value={f.phone} onChange={e=>set("phone",e.target.value)} placeholder="10-digit number"/></label><label>Parent / guardian<input value={f.parent} onChange={e=>set("parent",e.target.value)} placeholder="Parent name"/></label><label>Monthly fee<input type="number" value={f.fee} onChange={e=>set("fee",e.target.value)}/></label><label>Status<select value={f.status} onChange={e=>set("status",e.target.value)}><option>Active</option><option>Inactive</option></select></label><label className="wide">Batches<div className="batch-checks">{batches.map(b=><label className="check-option" key={b.id}><input type="checkbox" checked={f.batchIds.includes(b.id)} onChange={e=>set("batchIds",e.target.checked ? [...f.batchIds,b.id] : f.batchIds.filter(id=>id!==b.id))}/><span>{b.name}</span></label>)}</div></label></div></Modal>
 }
 
-function BatchModal({onClose,onSave}) {
-  const [f,setF]=useState({name:"",subject:"",time:"6:00 PM",days:"Mon · Wed · Fri"}); const set=(k,v)=>setF({...f,[k]:v});
-  return <Modal title="Create batch" onClose={onClose} onSubmit={()=>f.name&&onSave(f)}><div className="form-grid"><label>Batch name<input value={f.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. Class 12 Physics"/></label><label>Subject<input value={f.subject} onChange={e=>set("subject",e.target.value)} placeholder="Physics"/></label><label>Class time<input value={f.time} onChange={e=>set("time",e.target.value)} placeholder="6:00 PM"/></label><label>Days<input value={f.days} onChange={e=>set("days",e.target.value)} placeholder="Mon · Wed · Fri"/></label></div></Modal>
+function BatchModal({onClose,onSave,batch}) {
+  const [f,setF]=useState({name:batch?.name||"",subject:batch?.subject||"",time:batch?.time||"6:00 PM",days:batch?.days||"Mon · Wed · Fri"}); const set=(k,v)=>setF({...f,[k]:v});
+  return <Modal title={batch ? "Edit batch" : "Create batch"} onClose={onClose} onSubmit={()=>f.name.trim()&&onSave(f)} submit={batch ? "Save changes" : "Create batch"}><div className="form-grid"><label>Batch name<input value={f.name} onChange={e=>set("name",e.target.value)} placeholder="e.g. Class 12 Physics"/></label><label>Subject<input value={f.subject} onChange={e=>set("subject",e.target.value)} placeholder="Physics"/></label><label>Class time<input value={f.time} onChange={e=>set("time",e.target.value)} placeholder="6:00 PM"/></label><label>Days<input value={f.days} onChange={e=>set("days",e.target.value)} placeholder="Mon · Wed · Fri"/></label></div></Modal>
+}
+
+function BatchDetails({batch,students,onClose,onAddStudent,onEdit}) {
+  if (!batch) return null;
+  return <Modal title={batch.name} onClose={onClose} onSubmit={onAddStudent} submit="Add student to this batch">
+    <div className="batch-details">
+      <p className="muted">{batch.subject} · {batch.time} · {batch.days}</p>
+      <h4>Students ({students.length})</h4>
+      {students.length ? <div className="batch-student-list">{students.map(s=><div className="batch-student" key={s.id}><div className="person-avatar">{s.name.split(" ").map(x=>x[0]).join("").slice(0,2)}</div><div><b>{s.name}</b><span>{s.phone || "No phone added"} · {money(s.fee)}/month</span></div><span className="status"><i/> {s.status}</span></div>)}</div> : <div className="empty">No students in this batch yet.</div>}
+    <button className="soft" onClick={onEdit}>Edit batch details</button>
+    </div>
+  </Modal>
 }
 
 function PaymentModal({students,onClose,onSave}) {
