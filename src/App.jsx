@@ -77,6 +77,7 @@ function loadData() {
 
 const money = n => "₹" + Number(n || 0).toLocaleString("en-IN");
 const today = () => new Date().toISOString().slice(0, 10);
+const displayDate = value => value ? new Date(value + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 function AuthScreen({ onReady }) {
   const [mode, setMode] = useState("login");
@@ -286,7 +287,7 @@ export default function App() {
   };
 
   const recordPayment = form => {
-    const payment = { ...form, id: "p" + Date.now(), amount: Number(form.amount), date: today() };
+    const payment = { ...form, id: "p" + Date.now(), amount: Number(form.amount), date: form.date || today() };
     save({ ...data, payments: [payment, ...data.payments] });
     setModal(null);
   };
@@ -442,8 +443,14 @@ function Attendance({data,batchName,onMark}) {
 
 function Fees({data,batchName,onModal}) {
   const monthKey=new Date().toISOString().slice(0,7);
-  const rows=data.students.map(s=>{const paid=data.payments.filter(p=>p.studentId===s.id&&p.date.startsWith(monthKey)).reduce((a,p)=>a+Number(p.amount),0);return {...s,paid,due:Math.max(0,s.fee-paid)}})
-  return <div className="content"><div className="page-actions"><div><p className="muted">Track monthly collections</p><h2>Fees</h2></div><button className="primary" onClick={()=>onModal("payment")}><Plus size={18}/> Record Payment</button></div><div className="fee-cards"><div><span>Collected</span><b>{money(rows.reduce((a,r)=>a+r.paid,0))}</b></div><div><span>Pending</span><b>{money(rows.reduce((a,r)=>a+r.due,0))}</b></div><div><span>Paid students</span><b>{rows.filter(r=>r.due===0).length}/{rows.length}</b></div></div><section className="panel table-panel"><div className="panel-head"><div><h3>September {new Date().getFullYear()}</h3><span>Monthly fee status</span></div></div><div className="table-wrap"><table><thead><tr><th>Student</th><th>Batch</th><th>Monthly fee</th><th>Paid</th><th>Due</th></tr></thead><tbody>{rows.map(r=><tr key={r.id}><td><div className="person"><div className="person-avatar">{r.name.split(" ").map(x=>x[0]).join("").slice(0,2)}</div><div><b>{r.name}</b><span>{r.phone}</span></div></div></td><td>{batchName((r.batchIds||[])[0] || r.batchId)}</td><td>{money(r.fee)}</td><td className="paid">{money(r.paid)}</td><td className={r.due?"due":"paid"}>{money(r.due)}</td></tr>)}</tbody></table></div></section></div>
+  const monthLabel=new Date().toLocaleDateString("en-IN",{month:"long",year:"numeric"});
+  const rows=data.students.map(s=>{
+    const monthPayments=data.payments.filter(p=>p.studentId===s.id&&p.date.startsWith(monthKey));
+    const paid=monthPayments.reduce((a,p)=>a+Number(p.amount),0);
+    const latestPayment=[...data.payments].filter(p=>p.studentId===s.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+    return {...s,paid,due:Math.max(0,s.fee-paid),lastPaymentDate:latestPayment?.date||""};
+  });
+  return <div className="content"><div className="page-actions"><div><p className="muted">Track monthly collections</p><h2>Fees</h2></div><button className="primary" onClick={()=>onModal("payment")}><Plus size={18}/> Record Payment</button></div><div className="fee-cards"><div><span>Collected</span><b>{money(rows.reduce((a,r)=>a+r.paid,0))}</b></div><div><span>Pending</span><b>{money(rows.reduce((a,r)=>a+r.due,0))}</b></div><div><span>Paid students</span><b>{rows.filter(r=>r.due===0).length}/{rows.length}</b></div></div><section className="panel table-panel"><div className="panel-head"><div><h3>{monthLabel}</h3><span>Monthly fee status · Last received date is shown for each student</span></div></div><div className="table-wrap"><table><thead><tr><th>Student</th><th>Batch</th><th>Monthly fee</th><th>Paid this month</th><th>Last payment date</th><th>Due</th></tr></thead><tbody>{rows.map(r=><tr key={r.id}><td><div className="person"><div className="person-avatar">{r.name.split(" ").map(x=>x[0]).join("").slice(0,2)}</div><div><b>{r.name}</b><span>{r.phone}</span></div></div></td><td>{batchName((r.batchIds||[])[0] || r.batchId)}</td><td>{money(r.fee)}</td><td className="paid">{money(r.paid)}</td><td>{displayDate(r.lastPaymentDate)}</td><td className={r.due?"due":"paid"}>{money(r.due)}</td></tr>)}</tbody></table></div></section></div>
 }
 
 function Modal({title,children,onClose,onSubmit,submit="Save"}) {
@@ -475,6 +482,6 @@ function BatchDetails({batch,students,onClose,onAddStudent,onEdit}) {
 }
 
 function PaymentModal({students,onClose,onSave}) {
-  const [f,setF]=useState({studentId:students[0]?.id||"",amount:1000}); const set=(k,v)=>setF({...f,[k]:v});
-  return <Modal title="Record payment" onClose={onClose} onSubmit={()=>onSave(f)}><div className="form-grid"><label className="wide">Student<select value={f.studentId} onChange={e=>set("studentId",e.target.value)}>{students.map(s=><option value={s.id} key={s.id}>{s.name}</option>)}</select></label><label>Amount<input type="number" value={f.amount} onChange={e=>set("amount",e.target.value)}/></label></div></Modal>
+  const [f,setF]=useState({studentId:students[0]?.id||"",amount:1000,date:today()}); const set=(k,v)=>setF({...f,[k]:v});
+  return <Modal title="Record payment" onClose={onClose} onSubmit={()=>onSave(f)}><div className="form-grid"><label className="wide">Student<select value={f.studentId} onChange={e=>set("studentId",e.target.value)}>{students.map(s=><option value={s.id} key={s.id}>{s.name}</option>)}</select></label><label>Amount<input type="number" min="0" value={f.amount} onChange={e=>set("amount",e.target.value)}/></label><label>Payment received date<input type="date" value={f.date} onChange={e=>set("date",e.target.value)}/></label></div></Modal>
 }
