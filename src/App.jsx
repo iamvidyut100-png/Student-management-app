@@ -9,90 +9,68 @@ import {
 
 const seed = {
   batches: [
-    { id: "b1", name: "Class 12 Physics", subject: "Physics", time: "6:00 PM", days: "Mon · Wed · Fri" },
-    { id: "b2", name: "Class 10 Maths", subject: "Mathematics", time: "7:00 PM", days: "Tue · Thu · Sat" },
-    { id: "b3", name: "SSC GD", subject: "Competitive", time: "5:00 PM", days: "Mon · Wed · Fri" }
+    { id: "b-class10", name: "Class 10 — Everyday", subject: "General", time: "7:00–8:30 PM", days: "Mon · Tue · Wed · Thu · Fri · Sat · Sun" },
+    { id: "b-class11-physics", name: "Class 11 — Physics", subject: "Physics", time: "4:30 PM", days: "Mon · Wed · Fri" },
+    { id: "b-class12-maths", name: "Class 12 — Mathematics", subject: "Mathematics", time: "5:30 PM", days: "Mon · Wed · Fri" },
+    { id: "b-class12-physics-430", name: "Class 12 — Physics (4:30 PM)", subject: "Physics", time: "4:30 PM", days: "Tue · Thu · Sat" },
+    { id: "b-class12-physics-530", name: "Class 12 — Physics (5:30 PM)", subject: "Physics", time: "5:30 PM", days: "Tue · Thu · Sat" }
   ],
   students: [
-    { id: "s1", name: "Rahul Das", phone: "9876543210", parent: "Ramesh Das", batchId: "b1", fee: 1000, status: "Active", joined: "2026-04-12" },
-    { id: "s2", name: "Priya Sharma", phone: "9123456780", parent: "Sunil Sharma", batchId: "b2", fee: 750, status: "Active", joined: "2026-05-03" },
-    { id: "s3", name: "Aman Ali", phone: "9864123456", parent: "Karim Ali", batchId: "b3", fee: 1000, status: "Active", joined: "2026-06-18" },
-    { id: "s4", name: "Neha Nath", phone: "9435123456", parent: "Bimal Nath", batchId: "b1", fee: 1000, status: "Active", joined: "2026-07-09" }
+    { id: "st-shruti-shah", name: "Shruti Shah", phone: "", parent: "", batchId: "b-class10", batchIds: ["b-class10"], fee: 500, status: "Active", joined: "2026-11-06" },
+    { id: "st-ritika-chauhan", name: "Ritika Chauhan", phone: "", parent: "", batchId: "b-class10", batchIds: ["b-class10"], fee: 500, status: "Active", joined: "2026-11-06" },
+    { id: "st-gyanadeep-gogoi", name: "Gyanadeep Gogoi", phone: "", parent: "", batchId: "b-class10", batchIds: ["b-class10"], fee: 800, status: "Active", joined: "2026-11-06" },
+
+    { id: "st-piyush-das", name: "Piyush Das", phone: "", parent: "", batchId: "b-class11-physics", batchIds: ["b-class11-physics"], fee: 800, status: "Active", joined: "2026-11-06" },
+    { id: "st-karow-singha", name: "Karow Singha", phone: "", parent: "", batchId: "b-class11-physics", batchIds: ["b-class11-physics"], fee: 800, status: "Active", joined: "2026-11-06" },
+    { id: "st-lucky-singha", name: "Lucky Singha", phone: "", parent: "", batchId: "b-class11-physics", batchIds: ["b-class11-physics"], fee: 1000, status: "Active", joined: "2026-11-06" },
+    { id: "st-namah-roy", name: "Namah Roy", phone: "", parent: "", batchId: "b-class11-physics", batchIds: ["b-class11-physics"], fee: 1000, status: "Active", joined: "2026-11-06" },
+    { id: "st-mirlin-engtipi", name: "Mirlin Engtipi", phone: "", parent: "", batchId: "b-class11-physics", batchIds: ["b-class11-physics"], fee: 1000, status: "Active", joined: "2026-11-06" },
+
+    { id: "st-biki-das", name: "Biki Das", phone: "", parent: "", batchId: "b-class12-maths", batchIds: ["b-class12-maths"], fee: 800, status: "Active", joined: "2026-11-06" },
+    { id: "st-priyankush", name: "Priyankush", phone: "", parent: "", batchId: "b-class12-maths", batchIds: ["b-class12-maths"], fee: 800, status: "Active", joined: "2026-11-06" },
+    { id: "st-arjina-daulagaphu", name: "Arjina Daulagaphu", phone: "", parent: "", batchId: "b-class12-maths", batchIds: ["b-class12-maths", "b-class12-physics-430"], fee: 800, status: "Active", joined: "2026-11-06" },
+    { id: "st-sourav-chauhan", name: "Sourav Chauhan", phone: "", parent: "", batchId: "b-class12-maths", batchIds: ["b-class12-maths"], fee: 800, status: "Active", joined: "2026-11-06" },
+
+    { id: "st-adity-singha-ajmal", name: "Adity Singha (Ajmal)", phone: "", parent: "", batchId: "b-class12-physics-430", batchIds: ["b-class12-physics-430"], fee: 1000, status: "Active", joined: "2026-11-06" },
+    { id: "st-amutam-singha-ajmal", name: "Amutam Singha (Ajmal)", phone: "", parent: "", batchId: "b-class12-physics-430", batchIds: ["b-class12-physics-430"], fee: 1000, status: "Active", joined: "2026-11-06" },
+    { id: "st-debosmita-chitry", name: "Debosmita Chitry", phone: "", parent: "", batchId: "b-class12-physics-430", batchIds: ["b-class12-physics-430"], fee: 800, status: "Active", joined: "2026-11-06" },
+    { id: "st-gita-sangma", name: "Gita Sangma", phone: "", parent: "", batchId: "b-class12-physics-430", batchIds: ["b-class12-physics-430"], fee: 800, status: "Active", joined: "2026-11-06" },
+    { id: "st-nikita-sarkar", name: "Nikita Sarkar", phone: "", parent: "", batchId: "b-class12-physics-430", batchIds: ["b-class12-physics-430"], fee: 800, status: "Active", joined: "2026-11-06" },
+
+    { id: "st-abhijeet-singha", name: "Abhijeet Singha", phone: "", parent: "", batchId: "b-class12-physics-530", batchIds: ["b-class12-physics-530"], fee: 1000, status: "Active", joined: "2026-11-06" },
+    { id: "st-joydeep-anchi", name: "Joydeep Anchi", phone: "", parent: "", batchId: "b-class12-physics-530", batchIds: ["b-class12-physics-530"], fee: 1000, status: "Active", joined: "2026-11-06" }
   ],
-  payments: [
-    { id: "p1", studentId: "s1", amount: 1000, date: "2026-09-05" },
-    { id: "p2", studentId: "s2", amount: 750, date: "2026-09-04" },
-    { id: "p3", studentId: "s3", amount: 1000, date: "2026-09-02" }
-  ],
+  payments: [],
   attendance: {}
 };
 
+const RESET_KEY = "student-management-data-reset-v2";
+
 function loadData() {
   try {
+    const resetDone = localStorage.getItem(RESET_KEY) === "done";
+    if (!resetDone) {
+      localStorage.removeItem("student-management-data");
+      localStorage.setItem(RESET_KEY, "done");
+      localStorage.setItem("student-management-data", JSON.stringify(seed));
+      return seed;
+    }
     const saved = localStorage.getItem("student-management-data");
-    const data = saved ? JSON.parse(saved) : seed;
-    const now = new Date().toISOString().slice(0, 10);
-    const batchesToAdd = [
-      { id: "b-gcc-physics", name: "Physics — GCC Batch", subject: "Physics", time: "5:30 PM", days: "Tue · Thu · Sat" },
-      { id: "b-maths-2nd-year", name: "Maths — 2nd Year", subject: "Mathematics", time: "6:00 PM", days: "Mon · Wed · Fri" }
-    ];
-    const studentsToAdd = [
-      { id: "b-gcc-physics-s1", name: "Krishna Das", note: "[23/4]1+", batchId: "b-gcc-physics" },
-      { id: "b-gcc-physics-s2", name: "Abhijeet Das", note: "[23/4]", batchId: "b-gcc-physics" },
-      { id: "b-gcc-physics-s3", name: "Sourav Chauhan", note: "", batchId: "b-gcc-physics" },
-      { id: "b-gcc-physics-s4", name: "Debosmita Chetry", note: "1+", batchId: "b-gcc-physics" },
-      { id: "b-gcc-physics-s5", name: "Narayan Chouhan", note: "[25/5]", batchId: "b-gcc-physics" },
-      { id: "b-gcc-physics-s6", name: "Gita Sangma", note: "[27/5]", batchId: "b-gcc-physics" },
-      { id: "b-gcc-physics-s7", name: "Nomita Kumari", note: "-", batchId: "b-gcc-physics" },
-      { id: "b-gcc-physics-s8", name: "Survala Devi", note: "-", batchId: "b-gcc-physics" },
-      { id: "b-gcc-physics-s9", name: "Aditya Chauhan", note: "", batchId: "b-gcc-physics" },
-      { id: "b-maths-2nd-year-s1", name: "Abhijeet", note: "", batchId: "b-maths-2nd-year" },
-      { id: "b-maths-2nd-year-s2", name: "Krishna", note: "1+", batchId: "b-maths-2nd-year" },
-      { id: "b-maths-2nd-year-s3", name: "Sourav", note: "", batchId: "b-maths-2nd-year" },
-      { id: "b-maths-2nd-year-s4", name: "Gajendra", note: "1+", batchId: "b-maths-2nd-year" },
-      { id: "b-maths-2nd-year-s5", name: "Sangmai", note: "1+", batchId: "b-maths-2nd-year" },
-      { id: "b-maths-2nd-year-s6", name: "Desh Bandhu 1", note: "1", batchId: "b-maths-2nd-year" },
-      { id: "b-maths-2nd-year-s7", name: "Desh Bandhu 2", note: "", batchId: "b-maths-2nd-year" }
-    ];
-    const existingBatchIds = new Set((data.batches || []).map(b => b.id));
-    const batches = [...(data.batches || []), ...batchesToAdd.filter(b => !existingBatchIds.has(b.id))];
-    const existingStudentIds = new Set((data.students || []).map(s => s.id));
-    const students = [
-      ...(data.students || []),
-      ...studentsToAdd.filter(s => !existingStudentIds.has(s.id)).map(s => ({
-        ...s, phone: "", parent: "", fee: 1000, status: "Active", joined: now
-      }))
-    ];
-    const migratedStudents = students.map(s => {
-      const rawIds = Array.isArray(s.batchIds) && s.batchIds.length
-        ? s.batchIds
-        : (s.batchId ? [s.batchId] : []);
-      const normalizedIds = rawIds
-        .map(value => {
-          const batch = batches.find(b => b.id === value || b.name === value);
-          return batch?.id || null;
-        })
-        .filter(Boolean);
-      return {
-        ...s,
-        batchIds: normalizedIds,
-        batchId: normalizedIds[0] || ""
-      };
-    });
-    const demoStudentIds = new Set(["s1", "s2", "s3", "s4"]);
-    const cleanedStudents = migratedStudents.filter(s => !demoStudentIds.has(s.id));
-    const cleanedPayments = (data.payments || []).filter(p => !demoStudentIds.has(p.studentId));
-    const cleanedAttendance = Object.fromEntries(
-      Object.entries(data.attendance || {}).map(([date, marks]) => {
-        const nextMarks = { ...marks };
-        demoStudentIds.forEach(id => delete nextMarks[id]);
-        return [date, nextMarks];
-      })
-    );
-    const next = { ...seed, ...data, batches, students: cleanedStudents, payments: cleanedPayments, attendance: cleanedAttendance };
-    localStorage.setItem("student-management-data", JSON.stringify(next));
-    return next;
+    if (!saved) {
+      localStorage.setItem("student-management-data", JSON.stringify(seed));
+      return seed;
+    }
+    const data = JSON.parse(saved);
+    return {
+      ...seed,
+      ...data,
+      batches: Array.isArray(data.batches) ? data.batches : seed.batches,
+      students: Array.isArray(data.students) ? data.students : seed.students,
+      payments: Array.isArray(data.payments) ? data.payments : [],
+      attendance: data.attendance && typeof data.attendance === "object" ? data.attendance : {}
+    };
   } catch {
+    localStorage.setItem("student-management-data", JSON.stringify(seed));
     return seed;
   }
 }
