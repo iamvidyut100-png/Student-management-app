@@ -28,7 +28,7 @@ const seed = {
 
     { id: "st-biki-das", name: "Biki Das", phone: "", parent: "", batchId: "b-class12-maths", batchIds: ["b-class12-maths"], fee: 800, status: "Active", joined: "2026-11-06" },
     { id: "st-priyankush", name: "Priyankush", phone: "", parent: "", batchId: "b-class12-maths", batchIds: ["b-class12-maths"], fee: 800, status: "Active", joined: "2026-11-06" },
-    { id: "st-arjina-daulagaphu", name: "Arjina Daulagaphu", phone: "", parent: "", batchId: "b-class12-maths", batchIds: ["b-class12-maths", "b-class12-physics-430"], fee: 800, status: "Active", joined: "2026-11-06" },
+    { id: "st-arjina-daulagaphu", name: "Arjina Daulagaphu", phone: "", parent: "", batchId: "b-class12-maths", batchIds: ["b-class12-maths", "b-class12-physics-430"], fee: 1600, status: "Active", joined: "2026-11-06" },
     { id: "st-sourav-chauhan", name: "Sourav Chauhan", phone: "", parent: "", batchId: "b-class12-maths", batchIds: ["b-class12-maths"], fee: 800, status: "Active", joined: "2026-11-06" },
 
     { id: "st-adity-singha-ajmal", name: "Adity Singha (Ajmal)", phone: "", parent: "", batchId: "b-class12-physics-430", batchIds: ["b-class12-physics-430"], fee: 1000, status: "Active", joined: "2026-11-06" },
